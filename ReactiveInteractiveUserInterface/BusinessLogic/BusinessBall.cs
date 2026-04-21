@@ -1,4 +1,4 @@
-﻿//____________________________________________________________________________________________________________________________________
+//____________________________________________________________________________________________________________________________________
 //
 //  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
@@ -14,6 +14,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
   {
     public Ball(Data.IBall ball)
     {
+      _dataBall = ball;
       ball.NewPositionNotification += RaisePositionChangeEvent;
     }
 
@@ -21,9 +22,29 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     public event EventHandler<IPosition>? NewPositionNotification;
 
+    public double KineticEnergy
+    {
+      get
+      {
+        Data.IVector v = _dataBall.Velocity;
+        return 0.5 * (v.x * v.x + v.y * v.y);
+      }
+    }
+
+    public double MomentumMagnitude
+    {
+      get
+      {
+        Data.IVector v = _dataBall.Velocity;
+        return Math.Sqrt(v.x * v.x + v.y * v.y);
+      }
+    }
+
     #endregion IBall
 
     #region private
+
+    private readonly Data.IBall _dataBall;
 
     private void RaisePositionChangeEvent(object? sender, Data.IVector e)
     {

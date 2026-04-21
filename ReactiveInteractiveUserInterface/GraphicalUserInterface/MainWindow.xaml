@@ -1,32 +1,48 @@
-﻿<Window x:Class="TP.ConcurrentProgramming.PresentationView.MainWindow"
+<Window x:Class="TP.ConcurrentProgramming.PresentationView.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:TP.ConcurrentProgramming.Presentation.ViewModel;assembly=TP.ConcurrentProgramming.PresentationViewModel"
         mc:Ignorable="d"
-        Title="Presentation layer targeting reactive behaviour" Height="auto" Width="auto">
+        Title="Billiard Table Simulation" SizeToContent="WidthAndHeight" ResizeMode="CanMinimize">
     <Window.DataContext>
         <vm:MainWindowViewModel />
     </Window.DataContext>
-    <Border BorderThickness="4" BorderBrush="Green" Height="420" Width="400">
-        <ItemsControl ItemsSource="{Binding Balls}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <Canvas />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Ellipse Width= "{Binding Diameter}" Height="{Binding Diameter}" Fill="Blue" />
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-            <ItemsControl.ItemContainerStyle>
-                <Style TargetType="ContentPresenter">
-                    <Setter Property="Canvas.Top" Value="{Binding Top}" />
-                    <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                </Style>
-            </ItemsControl.ItemContainerStyle>
-        </ItemsControl>
-    </Border>
+    <StackPanel Orientation="Vertical">
+        <StackPanel Orientation="Horizontal" Margin="8,8,8,4">
+            <Label Content="Number of balls:" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding NumberOfBalls, UpdateSourceTrigger=PropertyChanged}"
+                     Width="50" VerticalAlignment="Center" Margin="4,0,8,0"/>
+            <Button Content="Start" Command="{Binding StartCommand}"
+                    Padding="12,4" VerticalAlignment="Center"/>
+            <Label Content="Total KE:" VerticalAlignment="Center" Margin="16,0,0,0"/>
+            <TextBlock Text="{Binding TotalEnergy, StringFormat=F2}"
+                       VerticalAlignment="Center" MinWidth="80"/>
+            <Label Content="Total |p|:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <TextBlock Text="{Binding TotalMomentum, StringFormat=F2}"
+                       VerticalAlignment="Center" MinWidth="80"/>
+        </StackPanel>
+        <Border BorderThickness="4" BorderBrush="Green" Margin="8,4,8,8"
+                HorizontalAlignment="Left" VerticalAlignment="Top">
+            <ItemsControl ItemsSource="{Binding Balls}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas Width="400" Height="400" Background="White"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Ellipse Width="{Binding Diameter}" Height="{Binding Diameter}" Fill="Blue"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Top" Value="{Binding Top}"/>
+                        <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+            </ItemsControl>
+        </Border>
+    </StackPanel>
 </Window>

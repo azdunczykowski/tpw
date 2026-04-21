@@ -39,6 +39,9 @@ namespace TP.ConcurrentProgramming.Presentation.Model
       Disposed = true;
     }
 
+    public override double TotalEnergy => _totalEnergy;
+    public override double TotalMomentum => _totalMomentum;
+
     public override IDisposable Subscribe(IObserver<IBall> observer)
     {
       return eventObservable.Subscribe(x => observer.OnNext(x.EventArgs.Ball), ex => observer.OnError(ex), () => observer.OnCompleted());
@@ -62,9 +65,13 @@ namespace TP.ConcurrentProgramming.Presentation.Model
     private bool Disposed = false;
     private readonly IObservable<EventPattern<BallChaneEventArgs>> eventObservable = null;
     private readonly UnderneathLayerAPI layerBellow = null;
+    private double _totalEnergy = 0;
+    private double _totalMomentum = 0;
 
     private void StartHandler(BusinessLogic.IPosition position, BusinessLogic.IBall ball)
     {
+      _totalEnergy += ball.KineticEnergy;
+      _totalMomentum += ball.MomentumMagnitude;
       ModelBall newBall = new ModelBall(position.x, position.y, ball) { Diameter = 20.0 };
       BallChanged.Invoke(this, new BallChaneEventArgs() { Ball = newBall });
     }

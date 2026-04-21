@@ -28,6 +28,9 @@ namespace TP.ConcurrentProgramming.Presentation.Model
 
     public abstract void Start(int numberOfBalls);
 
+    public abstract double TotalEnergy { get; }
+    public abstract double TotalMomentum { get; }
+
     #region IObservable
 
     public abstract IDisposable Subscribe(IObserver<IBall> observer);

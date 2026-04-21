@@ -1,4 +1,4 @@
-﻿//__________________________________________________________________________________________
+//__________________________________________________________________________________________
 //
 //  Copyright 2024 Mariusz Postol LODZ POLAND.
 //
@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using TP.ConcurrentProgramming.Presentation.Model;
 using TP.ConcurrentProgramming.Presentation.ViewModel.MVVMLight;
 using ModelIBall = TP.ConcurrentProgramming.Presentation.Model.IBall;
@@ -26,6 +27,7 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
     {
       ModelLayer = modelLayerAPI == null ? ModelAbstractApi.CreateModel() : modelLayerAPI;
       Observer = ModelLayer.Subscribe<ModelIBall>(x => Balls.Add(x));
+      StartCommand = new RelayCommand(StartSimulation, () => !_started);
     }
 
     #endregion ctor
@@ -36,11 +38,26 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
     {
       if (Disposed)
         throw new ObjectDisposedException(nameof(MainWindowViewModel));
+      _started = true;
       ModelLayer.Start(numberOfBalls);
       Observer.Dispose();
+      ((RelayCommand)StartCommand).RaiseCanExecuteChanged();
+      RaisePropertyChanged(nameof(TotalEnergy));
+      RaisePropertyChanged(nameof(TotalMomentum));
     }
 
     public ObservableCollection<ModelIBall> Balls { get; } = new ObservableCollection<ModelIBall>();
+
+    public ICommand StartCommand { get; }
+
+    public double TotalEnergy => ModelLayer.TotalEnergy;
+    public double TotalMomentum => ModelLayer.TotalMomentum;
+
+    public string NumberOfBalls
+    {
+      get => _numberOfBalls;
+      set { _numberOfBalls = value; RaisePropertyChanged(); }
+    }
 
     #endregion public API
 
@@ -56,9 +73,6 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
           Observer.Dispose();
           ModelLayer.Dispose();
         }
-
-        // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-        // TODO: set large fields to null
         Disposed = true;
       }
     }
@@ -75,9 +89,17 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
 
     #region private
 
+    private bool _started = false;
+    private string _numberOfBalls = "5";
     private IDisposable Observer = null;
     private ModelAbstractApi ModelLayer;
     private bool Disposed = false;
+
+    private void StartSimulation()
+    {
+      if (int.TryParse(NumberOfBalls, out int n) && n > 0)
+        Start(n);
+    }
 
     #endregion private
   }

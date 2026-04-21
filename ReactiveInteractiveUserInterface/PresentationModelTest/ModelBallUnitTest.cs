@@ -45,11 +45,8 @@ namespace TP.ConcurrentProgramming.Presentation.Model.Test
     private class BusinessLogicIBallFixture : BusinessLogic.IBall
     {
       public event EventHandler<IPosition>? NewPositionNotification;
-
-      public void Dispose()
-      {
-        throw new NotImplementedException();
-      }
+      public double KineticEnergy => 0.0;
+      public double MomentumMagnitude => 0.0;
     }
 
     #endregion testing instrumentation

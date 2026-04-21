@@ -80,6 +80,9 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
         Started = numberOfBalls;
       }
 
+      public override double TotalEnergy { get; }
+      public override double TotalMomentum { get; }
+
       public override IDisposable Subscribe(IObserver<ModelIBall> observer)
       {
         Subscribed++;
@@ -118,6 +121,8 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
 
       #region ModelAbstractApi fixture
 
+      public override double TotalMomentum { get; }
+
       public override IDisposable? Subscribe(IObserver<ModelIBall> observer)
       {
         return eventObservable?.Subscribe(x => observer.OnNext(x.EventArgs.Ball), ex => observer.OnError(ex), () => observer.OnCompleted());
@@ -131,6 +136,8 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
           BallChanged?.Invoke(this, new BallChaneEventArgs() { Ball = newBall });
         }
       }
+
+      public override double TotalEnergy { get; }
 
       public override void Dispose()
       {

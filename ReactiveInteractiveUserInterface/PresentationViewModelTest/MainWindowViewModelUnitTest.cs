@@ -89,6 +89,9 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
         return new NullDisposable();
       }
 
+      public override double TotalEnergy => 0.0;
+      public override double TotalMomentum => 0.0;
+
       #endregion ModelAbstractApi
 
       #region private
@@ -143,6 +146,9 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
       {
         Disposed = true;
       }
+
+      public override double TotalEnergy => 0.0;
+      public override double TotalMomentum => 0.0;
 
       #endregion ModelAbstractApi
 

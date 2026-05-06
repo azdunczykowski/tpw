@@ -63,5 +63,6 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     event EventHandler<IPosition> NewPositionNotification;
     double KineticEnergy { get; }
     double MomentumMagnitude { get; }
+    double Mass { get; }
   }
 }

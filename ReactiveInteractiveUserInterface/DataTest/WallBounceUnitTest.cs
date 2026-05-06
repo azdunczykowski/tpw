@@ -13,12 +13,9 @@ namespace TP.ConcurrentProgramming.Data.Test
   [TestClass]
   public class WallBounceUnitTest
   {
-    // TableWidth = TableHeight = 400, BallDiameter = 20 => max position = 380
-
     [TestMethod]
     public void RightWallBounceTest()
     {
-      // ball placed past the right boundary, moving right
       Ball ball = new(new Vector(381.0, 100.0), new Vector(50.0, 0.0), startThread: false);
 
       double vxBefore = 0, vyBefore = 0;
@@ -36,7 +33,6 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void LeftWallBounceTest()
     {
-      // ball placed before the left boundary, moving left
       Ball ball = new(new Vector(0.1, 100.0), new Vector(-50.0, 0.0), startThread: false);
 
       double vxBefore = 0;
@@ -53,7 +49,6 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void BottomWallBounceTest()
     {
-      // ball placed past the bottom boundary, moving down
       Ball ball = new(new Vector(100.0, 381.0), new Vector(0.0, 50.0), startThread: false);
 
       double vyBefore = 0;
@@ -71,7 +66,6 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void TopWallBounceTest()
     {
-      // ball placed before the top boundary, moving up
       Ball ball = new(new Vector(100.0, 0.1), new Vector(0.0, -50.0), startThread: false);
 
       double vyBefore = 0;
@@ -86,16 +80,38 @@ namespace TP.ConcurrentProgramming.Data.Test
     }
 
     [TestMethod]
+    public void HighVelocityNoBoundaryStickingTest()
+    {
+      Ball ball = new(new Vector(190.0, 190.0), new Vector(4000.0, 3000.0), startThread: false);
+
+      bool outOfBounds = false;
+      ball.NewPositionNotification += (sender, pos) =>
+      {
+        if (pos.x < 0 || pos.x > 380.0 || pos.y < 0 || pos.y > 380.0)
+          outOfBounds = true;
+      };
+
+      for (int i = 0; i < 500; i++)
+        ball.SimulateMove();
+
+      Assert.IsFalse(outOfBounds, "Ball must stay within [0, 380] even at high velocity.");
+
+      double vx = 0, vy = 0;
+      ball.CheckVelocity((x, y) => { vx = x; vy = y; });
+      double speed = Math.Sqrt(vx * vx + vy * vy);
+      double expectedSpeed = Math.Sqrt(4000.0 * 4000.0 + 3000.0 * 3000.0);
+      Assert.AreEqual(expectedSpeed, speed, 1e-6, "Speed must be preserved after high-velocity bounces.");
+    }
+
+    [TestMethod]
     public void SpeedPreservedAfterBounceTest()
     {
-      // energy conservation: |v| must stay the same after bounce
       Ball ball = new(new Vector(381.0, 381.0), new Vector(70.3, 80.7), startThread: false);
 
       double vx0 = 0, vy0 = 0;
       ball.CheckVelocity((vx, vy) => { vx0 = vx; vy0 = vy; });
       double speedBefore = Math.Sqrt(vx0 * vx0 + vy0 * vy0);
 
-      // simulate many moves including multiple bounces
       for (int i = 0; i < 500; i++)
         ball.SimulateMove();
 

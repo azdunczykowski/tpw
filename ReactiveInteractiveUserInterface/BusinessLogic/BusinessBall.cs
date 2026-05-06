@@ -40,6 +40,8 @@ namespace TP.ConcurrentProgramming.BusinessLogic
       }
     }
 
+    public double Mass => _dataBall.Mass;
+
     #endregion IBall
 
     #region private

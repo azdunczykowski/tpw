@@ -47,6 +47,7 @@ namespace TP.ConcurrentProgramming.Presentation.Model.Test
       public event EventHandler<IPosition>? NewPositionNotification;
       public double KineticEnergy => 0.0;
       public double MomentumMagnitude => 0.0;
+      public double Mass => 1.0;
     }
 
     #endregion testing instrumentation

@@ -16,8 +16,9 @@ namespace TP.ConcurrentProgramming.Data
   {
     #region ctor
 
-    internal Ball(Vector initialPosition, Vector initialVelocity, bool startThread = true)
+    internal Ball(Vector initialPosition, Vector initialVelocity, double mass = 1.0, bool startThread = true)
     {
+      _mass = mass;
       _posX = initialPosition.x;
       _posY = initialPosition.y;
       _velX = initialVelocity.x;
@@ -41,6 +42,10 @@ namespace TP.ConcurrentProgramming.Data
       set { _velX = value.x; _velY = value.y; }
     }
 
+    public double Mass => _mass;
+
+    public IVector Position => new Vector(_posX, _posY);
+
     #endregion IBall
 
     #region internal API
@@ -57,6 +62,7 @@ namespace TP.ConcurrentProgramming.Data
     private double _velY;
     private volatile bool _cancelled = false;
     private readonly Thread? _thread;
+    private readonly double _mass;
 
     private const double TableWidth = 400.0;
     private const double TableHeight = 400.0;
@@ -82,26 +88,33 @@ namespace TP.ConcurrentProgramming.Data
       _posX += _velX * TickSeconds;
       _posY += _velY * TickSeconds;
 
+      const double maxX = TableWidth - BallDiameter;
+      const double maxY = TableHeight - BallDiameter;
+
       if (_posX < 0.0)
       {
-        _posX = 0.0;
-        _velX = -_velX;
+        _posX = -_posX;
+        _velX = Math.Abs(_velX);
+        if (_posX > maxX) _posX = maxX;
       }
-      else if (_posX > TableWidth - BallDiameter)
+      else if (_posX > maxX)
       {
-        _posX = TableWidth - BallDiameter;
-        _velX = -_velX;
+        _posX = 2.0 * maxX - _posX;
+        _velX = -Math.Abs(_velX);
+        if (_posX < 0.0) _posX = 0.0;
       }
 
       if (_posY < 0.0)
       {
-        _posY = 0.0;
-        _velY = -_velY;
+        _posY = -_posY;
+        _velY = Math.Abs(_velY);
+        if (_posY > maxY) _posY = maxY;
       }
-      else if (_posY > TableHeight - BallDiameter)
+      else if (_posY > maxY)
       {
-        _posY = TableHeight - BallDiameter;
-        _velY = -_velY;
+        _posY = 2.0 * maxY - _posY;
+        _velY = -Math.Abs(_velY);
+        if (_posY < 0.0) _posY = 0.0;
       }
 
       NewPositionNotification?.Invoke(this, new Vector(_posX, _posY));

@@ -80,17 +80,14 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
         Started = numberOfBalls;
       }
 
-      public override double TotalEnergy { get; }
-      public override double TotalMomentum { get; }
+      public override double TotalEnergy => 0.0;
+      public override double TotalMomentum => 0.0;
 
       public override IDisposable Subscribe(IObserver<ModelIBall> observer)
       {
         Subscribed++;
         return new NullDisposable();
       }
-
-      public override double TotalEnergy => 0.0;
-      public override double TotalMomentum => 0.0;
 
       #endregion ModelAbstractApi
 
@@ -124,7 +121,8 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
 
       #region ModelAbstractApi fixture
 
-      public override double TotalMomentum { get; }
+      public override double TotalEnergy => 0.0;
+      public override double TotalMomentum => 0.0;
 
       public override IDisposable? Subscribe(IObserver<ModelIBall> observer)
       {
@@ -140,15 +138,10 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
         }
       }
 
-      public override double TotalEnergy { get; }
-
       public override void Dispose()
       {
         Disposed = true;
       }
-
-      public override double TotalEnergy => 0.0;
-      public override double TotalMomentum => 0.0;
 
       #endregion ModelAbstractApi
 

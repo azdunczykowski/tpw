@@ -102,6 +102,32 @@ namespace TP.ConcurrentProgramming.Data.Test
       Assert.IsTrue(spread < 100L,
           $"First notifications spread {spread}ms should be < 100ms across all {numberOfBalls} balls.");
     }
+    
+    [TestMethod]
+    public void AllBallsCompleteExpectedMovesTest()
+    {
+      using DataImplementation impl = new();
+      const int numberOfBalls = 10;
+      const int minExpectedMoves = 15;
+
+      int[] moveCounts = new int[numberOfBalls];
+      int ballIndex = 0;
+
+      impl.Start(numberOfBalls, (pos, ball) =>
+      {
+        int myIndex = ballIndex++;
+        ball.NewPositionNotification += (sender, e) =>
+        {
+          Interlocked.Increment(ref moveCounts[myIndex]);
+        };
+      });
+
+      Thread.Sleep(500);
+
+      for (int i = 0; i < numberOfBalls; i++)
+        Assert.IsTrue(moveCounts[i] >= minExpectedMoves,
+          $"Ball {i} completed only {moveCounts[i]} moves in 500ms; expected at least {minExpectedMoves}. All counts: [{string.Join(", ", moveCounts)}]");
+    }
 
     [TestMethod]
     public void HighPrecisionTimerResolutionTest()

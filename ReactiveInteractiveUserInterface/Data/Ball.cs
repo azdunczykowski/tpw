@@ -12,128 +12,115 @@ using System.Diagnostics;
 
 namespace TP.ConcurrentProgramming.Data
 {
+  // Programowanie czasu rzeczywistego: ruch oparty na rzeczywistym czasie delta ze Stopwatch,
+  // nie na stałej nominalnej. Logowanie diagnostyczne przez nieblokującą kolejkę.
   internal class Ball : IBall
   {
-    #region ctor
-
-    internal Ball(Vector initialPosition, Vector initialVelocity, double mass = 1.0, bool startThread = true)
+    internal Ball(Vector initialPosition, Vector initialVelocity,
+                  int ballId = 0,
+                  DiagnosticLogger? logger = null,
+                  Action<Ball>? preNotificationCallback = null)
     {
-      _mass = mass;
-      _posX = initialPosition.x;
-      _posY = initialPosition.y;
-      _velX = initialVelocity.x;
-      _velY = initialVelocity.y;
-      if (startThread)
-      {
-        _thread = new Thread(RunLoop) { IsBackground = true };
-        _thread.Start();
-      }
-    }
+      _position = initialPosition;
+      _velocity = initialVelocity;
+      _ballId = ballId;
+      _logger = logger;
+      _preNotificationCallback = preNotificationCallback;
+      _stopwatch = Stopwatch.StartNew();
 
-    #endregion ctor
+      _thread = new Thread(Run) { IsBackground = true, Name = $"Ball-{ballId}" };
+      _thread.Start();
+    }
 
     #region IBall
 
     public event EventHandler<IVector>? NewPositionNotification;
 
-    public IVector Velocity
-    {
-      get { lock (_lock) return new Vector(_velX, _velY); }
-      set { lock (_lock) { _velX = value.x; _velY = value.y; } }
-    }
-
-    public double Mass => _mass;
-
     public IVector Position
     {
-      get { lock (_lock) return new Vector(_posX, _posY); }
-      set { lock (_lock) { _posX = value.x; _posY = value.y; } }
+      get { lock (_lock) { return _position; } }
+      set { lock (_lock) { _position = new Vector(value.x, value.y); } }
     }
 
+    public IVector Velocity
+    {
+      get { lock (_lock) { return _velocity; } }
+      set { lock (_lock) { _velocity = new Vector(value.x, value.y); } }
+    }
+
+    public double Mass { get; } = 1.0;
+
+    // Atomowy odczyt pozycji i prędkości pod jednym lockiem – zapobiega torn read.
     public (IVector position, IVector velocity) GetState()
     {
-      lock (_lock)
-        return (new Vector(_posX, _posY), new Vector(_velX, _velY));
+      lock (_lock) { return (_position, _velocity); }
     }
 
     #endregion IBall
 
     #region internal API
 
-    internal void Stop() => _cancelled = true;
+    internal void Stop() => _running = false;
+
+    internal void Move(double deltaTime)
+    {
+      lock (_lock)
+      {
+        _position = new Vector(
+          _position.x + _velocity.x * deltaTime,
+          _position.y + _velocity.y * deltaTime);
+      }
+
+      _preNotificationCallback?.Invoke(this);
+
+      if (_logger != null)
+      {
+        IVector pos, vel;
+        lock (_lock) { pos = _position; vel = _velocity; }
+        _logger.Log(_ballId, pos.x, pos.y, vel.x, vel.y, _stopwatch.ElapsedMilliseconds);
+      }
+
+      NewPositionNotification?.Invoke(this, _position);
+    }
+
+    // Overload dla kompatybilności ze starszymi testami
+    internal void Move(double deltaTime, double tableWidth, double tableHeight, double ballDiameter)
+      => Move(deltaTime);
 
     #endregion internal API
 
     #region private
 
-    private double _posX;
-    private double _posY;
-    private double _velX;
-    private double _velY;
-    private volatile bool _cancelled = false;
-    private readonly Thread? _thread;
-    private readonly double _mass;
-    private readonly object _lock = new();
+    private Vector _position;
+    private Vector _velocity;
+    private volatile bool _running = true;
 
-    private const double TableWidth = TableDimensions.Width;
-    private const double TableHeight = TableDimensions.Height;
-    private const double BallDiameter = TableDimensions.BallSize;
-    private const double TickSeconds = 0.010;
+    private readonly int _ballId;
+    private readonly DiagnosticLogger? _logger;
+    private readonly Thread _thread;
+    private readonly object _lock = new object();
+    private readonly Stopwatch _stopwatch;
+    private readonly Action<Ball>? _preNotificationCallback;
 
-    private void RunLoop()
+    internal const int TargetPeriodMs = 16; // ~60 fps
+
+    // Real-time loop: deltaTime to rzeczywisty czas od ostatniej klatki (Stopwatch),
+    // nie stała nominalna. Thread.Sleep ogranicza CPU ale nie wpływa na fizykę.
+    private void Run()
     {
-      Stopwatch sw = new Stopwatch();
-      while (!_cancelled)
+      var sw = Stopwatch.StartNew();
+      while (_running)
       {
+        double realDelta = sw.Elapsed.TotalSeconds;
         sw.Restart();
-        Move();
-        sw.Stop();
-        TimeSpan remaining = TimeSpan.FromMilliseconds(10) - sw.Elapsed;
-        if (remaining > TimeSpan.Zero)
-          Thread.Sleep(remaining);
+        if (realDelta > 0.2) realDelta = TargetPeriodMs / 1000.0;
+
+        Move(realDelta);
+
+        long elapsed = sw.ElapsedMilliseconds;
+        int toWait = TargetPeriodMs - (int)elapsed;
+        if (toWait > 0) Thread.Sleep(toWait);
       }
-    }
-
-    private void Move()
-    {
-      Vector currentPos;
-      lock (_lock)
-      {
-        _posX += _velX * TickSeconds;
-        _posY += _velY * TickSeconds;
-
-        const double maxX = TableWidth - BallDiameter;
-        const double maxY = TableHeight - BallDiameter;
-
-        if (_posX < 0.0)
-        {
-          _posX = -_posX;
-          _velX = Math.Abs(_velX);
-          if (_posX > maxX) _posX = maxX;
-        }
-        else if (_posX > maxX)
-        {
-          _posX = 2.0 * maxX - _posX;
-          _velX = -Math.Abs(_velX);
-          if (_posX < 0.0) _posX = 0.0;
-        }
-
-        if (_posY < 0.0)
-        {
-          _posY = -_posY;
-          _velY = Math.Abs(_velY);
-          if (_posY > maxY) _posY = maxY;
-        }
-        else if (_posY > maxY)
-        {
-          _posY = 2.0 * maxY - _posY;
-          _velY = -Math.Abs(_velY);
-          if (_posY < 0.0) _posY = 0.0;
-        }
-
-        currentPos = new Vector(_posX, _posY);
-      }
-      NewPositionNotification?.Invoke(this, currentPos);
     }
 
     #endregion private
@@ -144,13 +131,13 @@ namespace TP.ConcurrentProgramming.Data
     internal void CheckVelocity(Action<double, double> returnVelocity)
     {
       lock (_lock)
-        returnVelocity(_velX, _velY);
+        returnVelocity(_velocity.x, _velocity.y);
     }
 
     [Conditional("DEBUG")]
     internal void SimulateMove()
     {
-      Move();
+      Move(TargetPeriodMs / 1000.0);
     }
 
     #endregion TestingInfrastructure

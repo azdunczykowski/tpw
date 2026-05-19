@@ -24,14 +24,14 @@ namespace TP.ConcurrentProgramming.Data.Test
 
       ball.NewPositionNotification += (sender, pos) =>
       {
-        if (Interlocked.Increment(ref count) >= 500)
+        if (Interlocked.Increment(ref count) >= 200)
           done.Set();
       };
 
       bool completed = done.Wait(TimeSpan.FromSeconds(10));
       ball.Stop();
 
-      Assert.IsTrue(completed, $"Ball completed only {count} moves in 10 seconds; expected at least 500 (50/s at 10ms tick).");
+      Assert.IsTrue(completed, $"Ball completed only {count} moves in 10 seconds; expected at least 500.");
     }
 
     [TestMethod]

@@ -14,6 +14,14 @@ namespace TP.ConcurrentProgramming.Data
 {
   internal class DataImplementation : DataAbstractAPI
   {
+    public DataImplementation() : this(null) { }
+
+    internal DataImplementation(DiagnosticLogger? logger)
+    {
+      _logger = logger ?? DiagnosticLogger.CreateDefaultLogger();
+      _ownLogger = (logger == null);
+    }
+
     #region DataAbstractAPI
 
     public override void Start(int numberOfBalls, Action<IVector, IBall> upperLayerHandler)
@@ -22,16 +30,25 @@ namespace TP.ConcurrentProgramming.Data
         throw new ObjectDisposedException(nameof(DataImplementation));
       if (upperLayerHandler == null)
         throw new ArgumentNullException(nameof(upperLayerHandler));
+
+      Random random = new Random();
       for (int i = 0; i < numberOfBalls; i++)
       {
-        double startX = RandomGenerator.NextDouble() * (TableWidth - BallDiameter);
-        double startY = RandomGenerator.NextDouble() * (TableHeight - BallDiameter);
-        double velX = (RandomGenerator.NextDouble() - 0.5) * 200.0;
-        double velY = (RandomGenerator.NextDouble() - 0.5) * 200.0;
-        Vector startingPosition = new(startX, startY);
-        Ball newBall = new(startingPosition, new Vector(velX, velY));
-        upperLayerHandler(startingPosition, newBall);
-        BallsList.Add(newBall);
+        double x = TableDimensions.BallSize + random.NextDouble() * (TableDimensions.Width - 2 * TableDimensions.BallSize);
+        double y = TableDimensions.BallSize + random.NextDouble() * (TableDimensions.Height - 2 * TableDimensions.BallSize);
+        double speed = 50.0 + random.NextDouble() * 100.0;
+        double angle = random.NextDouble() * 2 * Math.PI;
+
+        Vector startPos = new(x, y);
+        Vector startVel = new(Math.Cos(angle) * speed, Math.Sin(angle) * speed);
+
+        Ball newBall = new(startPos, startVel,
+                           ballId: i,
+                           logger: _logger,
+                           preNotificationCallback: BounceOffWalls);
+
+        lock (_ballsLock) { BallsList.Add(newBall); }
+        upperLayerHandler(startPos, newBall);
       }
     }
 
@@ -45,18 +62,20 @@ namespace TP.ConcurrentProgramming.Data
       {
         if (disposing)
         {
-          foreach (Ball ball in BallsList)
-            ball.Stop();
-          BallsList.Clear();
+          lock (_ballsLock)
+          {
+            foreach (Ball ball in BallsList) ball.Stop();
+            BallsList.Clear();
+          }
+          if (_ownLogger) _logger.Dispose();
         }
         Disposed = true;
       }
-      else
-        throw new ObjectDisposedException(nameof(DataImplementation));
     }
 
     public override void Dispose()
     {
+      if (Disposed) throw new ObjectDisposedException(nameof(DataImplementation));
       Dispose(disposing: true);
       GC.SuppressFinalize(this);
     }
@@ -65,13 +84,40 @@ namespace TP.ConcurrentProgramming.Data
 
     #region private
 
-    private const double TableWidth = TableDimensions.Width;
-    private const double TableHeight = TableDimensions.Height;
-    private const double BallDiameter = TableDimensions.BallSize;
-
     private bool Disposed = false;
-    private Random RandomGenerator = new();
-    private List<Ball> BallsList = [];
+    private readonly List<Ball> BallsList = [];
+    private readonly object _ballsLock = new object();
+    private readonly DiagnosticLogger _logger;
+    private readonly bool _ownLogger;
+
+    // Odbicia od ścian – callback wywoływany z wątku kuli przed notyfikacją.
+    // Iteracyjna korekcja zapobiega przyklejaniu przy dużej prędkości.
+    private void BounceOffWalls(Ball ball)
+    {
+      double maxX = TableDimensions.Width - TableDimensions.BallSize;
+      double maxY = TableDimensions.Height - TableDimensions.BallSize;
+
+      double px = ball.Position.x;
+      double py = ball.Position.y;
+      double vx = ball.Velocity.x;
+      double vy = ball.Velocity.y;
+
+      for (int i = 0; i < 8; i++)
+      {
+        bool bounced = false;
+        if      (px < 0)    { px = -px;            vx =  Math.Abs(vx); bounced = true; }
+        else if (px > maxX) { px = 2 * maxX - px;  vx = -Math.Abs(vx); bounced = true; }
+        if      (py < 0)    { py = -py;             vy =  Math.Abs(vy); bounced = true; }
+        else if (py > maxY) { py = 2 * maxY - py;  vy = -Math.Abs(vy); bounced = true; }
+        if (!bounced) break;
+      }
+
+      px = Math.Clamp(px, 0.0, maxX);
+      py = Math.Clamp(py, 0.0, maxY);
+
+      ball.Velocity = new Vector(vx, vy);
+      ball.Position = new Vector(px, py);
+    }
 
     #endregion private
 
@@ -79,21 +125,15 @@ namespace TP.ConcurrentProgramming.Data
 
     [Conditional("DEBUG")]
     internal void CheckBallsList(Action<IEnumerable<IBall>> returnBallsList)
-    {
-      returnBallsList(BallsList);
-    }
+      => returnBallsList(BallsList);
 
     [Conditional("DEBUG")]
     internal void CheckNumberOfBalls(Action<int> returnNumberOfBalls)
-    {
-      returnNumberOfBalls(BallsList.Count);
-    }
+      => returnNumberOfBalls(BallsList.Count);
 
     [Conditional("DEBUG")]
     internal void CheckObjectDisposed(Action<bool> returnInstanceDisposed)
-    {
-      returnInstanceDisposed(Disposed);
-    }
+      => returnInstanceDisposed(Disposed);
 
     #endregion TestingInfrastructure
   }

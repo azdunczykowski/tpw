@@ -23,11 +23,16 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
     public MainWindowViewModel() : this(null)
     { }
 
-    internal MainWindowViewModel(ModelAbstractApi modelLayerAPI)
+    internal MainWindowViewModel(ModelAbstractApi? modelLayerAPI)
     {
       ModelLayer = modelLayerAPI == null ? ModelAbstractApi.CreateModel() : modelLayerAPI;
       Observer = ModelLayer.Subscribe<ModelIBall>(x => Balls.Add(x));
       StartCommand = new RelayCommand(StartSimulation, () => !_started);
+      ModelLayer.PhysicsChanged += (_, _) =>
+      {
+        RaisePropertyChanged(nameof(TotalEnergy));
+        RaisePropertyChanged(nameof(TotalMomentum));
+      };
     }
 
     #endregion ctor
@@ -42,8 +47,6 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
       ModelLayer.Start(numberOfBalls);
       Observer.Dispose();
       ((RelayCommand)StartCommand).RaiseCanExecuteChanged();
-      RaisePropertyChanged(nameof(TotalEnergy));
-      RaisePropertyChanged(nameof(TotalMomentum));
     }
 
     public ObservableCollection<ModelIBall> Balls { get; } = new ObservableCollection<ModelIBall>();
@@ -91,7 +94,7 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
 
     private bool _started = false;
     private string _numberOfBalls = "5";
-    private IDisposable Observer = null;
+    private IDisposable Observer = null!;
     private ModelAbstractApi ModelLayer;
     private bool Disposed = false;
 

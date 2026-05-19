@@ -1,4 +1,4 @@
-﻿//__________________________________________________________________________________________
+//__________________________________________________________________________________________
 //
 //  Copyright 2024 Mariusz Postol LODZ POLAND.
 //
@@ -30,6 +30,11 @@ namespace TP.ConcurrentProgramming.Presentation.Model
 
     public abstract double TotalEnergy { get; }
     public abstract double TotalMomentum { get; }
+
+    public abstract double CanvasWidth { get; set; }
+    public abstract double CanvasHeight { get; set; }
+
+    public abstract event EventHandler? PhysicsChanged;
 
     #region IObservable
 

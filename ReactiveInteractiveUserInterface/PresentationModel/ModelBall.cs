@@ -1,4 +1,4 @@
-﻿//____________________________________________________________________________________________________________________________________
+//____________________________________________________________________________________________________________________________________
 //
 //  Copyright (C) 2023, Mariusz Postol LODZ POLAND.
 //
@@ -12,8 +12,9 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using TP.ConcurrentProgramming.BusinessLogic;
+using System.Threading;
 using LogicIBall = TP.ConcurrentProgramming.BusinessLogic.IBall;
+using LogicIPosition = TP.ConcurrentProgramming.BusinessLogic.IPosition;
 
 namespace TP.ConcurrentProgramming.Presentation.Model
 {
@@ -21,9 +22,10 @@ namespace TP.ConcurrentProgramming.Presentation.Model
   {
     public ModelBall(double top, double left, LogicIBall underneathBall)
     {
+      _uiContext = SynchronizationContext.Current;
       TopBackingField = top;
       LeftBackingField = left;
-      underneathBall.NewPositionNotification += NewPositionNotification;
+      underneathBall.NewPositionNotification += NewPositionNotificationHandler;
     }
 
     #region IBall
@@ -56,7 +58,7 @@ namespace TP.ConcurrentProgramming.Presentation.Model
 
     #region INotifyPropertyChanged
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     #endregion INotifyPropertyChanged
 
@@ -66,10 +68,16 @@ namespace TP.ConcurrentProgramming.Presentation.Model
 
     private double TopBackingField;
     private double LeftBackingField;
+    private readonly SynchronizationContext? _uiContext;
 
-    private void NewPositionNotification(object sender, IPosition e)
+    private void NewPositionNotificationHandler(object? sender, LogicIPosition e)
     {
-      Top = e.y; Left = e.x;
+      double newTop = e.y;
+      double newLeft = e.x;
+      if (_uiContext != null)
+        _uiContext.Post(_ => { Top = newTop; Left = newLeft; }, null);
+      else
+        { Top = newTop; Left = newLeft; }
     }
 
     private void RaisePropertyChanged([CallerMemberName] string propertyName = "")

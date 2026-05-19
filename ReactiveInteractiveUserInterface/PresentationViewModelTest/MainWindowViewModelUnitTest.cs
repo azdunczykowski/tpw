@@ -70,6 +70,11 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
 
       #region ModelAbstractApi
 
+      public override double CanvasWidth { get; set; } = 400.0;
+      public override double CanvasHeight { get; set; } = 400.0;
+
+      public override event EventHandler? PhysicsChanged { add { } remove { } }
+
       public override void Dispose()
       {
         Disposed++;
@@ -121,6 +126,11 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
 
       #region ModelAbstractApi fixture
 
+      public override double CanvasWidth { get; set; } = 400.0;
+      public override double CanvasHeight { get; set; } = 400.0;
+
+      public override event EventHandler? PhysicsChanged { add { } remove { } }
+
       public override double TotalEnergy => 0.0;
       public override double TotalMomentum => 0.0;
 
@@ -147,7 +157,7 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel.Test
 
       #region API
 
-      public event EventHandler<BallChaneEventArgs> BallChanged;
+      public event EventHandler<BallChaneEventArgs>? BallChanged;
 
       #endregion API
 

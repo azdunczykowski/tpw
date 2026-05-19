@@ -109,7 +109,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
     private class TestBall : Data.IBall
     {
       private double _velX, _velY;
-      private readonly double _posX, _posY;
+      private double _posX, _posY;
 
       public TestBall(double posX, double posY, double velX, double velY)
       {
@@ -128,7 +128,16 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       }
 
       public double Mass => 1.0;
-      public IVector Position => new VecFixture(_posX, _posY);
+
+      public IVector Position
+      {
+        get => new VecFixture(_posX, _posY);
+        set { _posX = value.x; _posY = value.y; }
+      }
+
+      public (IVector position, IVector velocity) GetState()
+        => (new VecFixture(_posX, _posY), new VecFixture(_velX, _velY));
+
       public IVector CurrentVelocity => Velocity;
 
       public void RaiseMove() =>

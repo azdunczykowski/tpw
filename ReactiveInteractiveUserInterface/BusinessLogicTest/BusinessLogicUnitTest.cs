@@ -1,4 +1,4 @@
-﻿//____________________________________________________________________________________________________________________________________
+//____________________________________________________________________________________________________________________________________
 //
 //  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
@@ -111,9 +111,25 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
 
       private class DataBallFixture : Data.IBall
       {
-        public IVector Velocity { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        private double _velX, _velY;
+        private double _posX, _posY;
+
+        public IVector Velocity
+        {
+          get => new DataVectorFixture { x = _velX, y = _velY };
+          set { _velX = value.x; _velY = value.y; }
+        }
+
         public double Mass => 1.0;
-        public IVector Position => new DataVectorFixture();
+
+        public IVector Position
+        {
+          get => new DataVectorFixture { x = _posX, y = _posY };
+          set { _posX = value.x; _posY = value.y; }
+        }
+
+        public (IVector position, IVector velocity) GetState()
+          => (new DataVectorFixture { x = _posX, y = _posY }, new DataVectorFixture { x = _velX, y = _velY });
 
         public event EventHandler<IVector>? NewPositionNotification = null;
 

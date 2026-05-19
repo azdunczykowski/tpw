@@ -38,13 +38,23 @@ namespace TP.ConcurrentProgramming.Data
 
     public IVector Velocity
     {
-      get => new Vector(_velX, _velY);
-      set { _velX = value.x; _velY = value.y; }
+      get { lock (_lock) return new Vector(_velX, _velY); }
+      set { lock (_lock) { _velX = value.x; _velY = value.y; } }
     }
 
     public double Mass => _mass;
 
-    public IVector Position => new Vector(_posX, _posY);
+    public IVector Position
+    {
+      get { lock (_lock) return new Vector(_posX, _posY); }
+      set { lock (_lock) { _posX = value.x; _posY = value.y; } }
+    }
+
+    public (IVector position, IVector velocity) GetState()
+    {
+      lock (_lock)
+        return (new Vector(_posX, _posY), new Vector(_velX, _velY));
+    }
 
     #endregion IBall
 
@@ -63,10 +73,11 @@ namespace TP.ConcurrentProgramming.Data
     private volatile bool _cancelled = false;
     private readonly Thread? _thread;
     private readonly double _mass;
+    private readonly object _lock = new();
 
-    private const double TableWidth = 400.0;
-    private const double TableHeight = 400.0;
-    private const double BallDiameter = 20.0;
+    private const double TableWidth = TableDimensions.Width;
+    private const double TableHeight = TableDimensions.Height;
+    private const double BallDiameter = TableDimensions.BallSize;
     private const double TickSeconds = 0.010;
 
     private void RunLoop()
@@ -85,39 +96,44 @@ namespace TP.ConcurrentProgramming.Data
 
     private void Move()
     {
-      _posX += _velX * TickSeconds;
-      _posY += _velY * TickSeconds;
-
-      const double maxX = TableWidth - BallDiameter;
-      const double maxY = TableHeight - BallDiameter;
-
-      if (_posX < 0.0)
+      Vector currentPos;
+      lock (_lock)
       {
-        _posX = -_posX;
-        _velX = Math.Abs(_velX);
-        if (_posX > maxX) _posX = maxX;
-      }
-      else if (_posX > maxX)
-      {
-        _posX = 2.0 * maxX - _posX;
-        _velX = -Math.Abs(_velX);
-        if (_posX < 0.0) _posX = 0.0;
-      }
+        _posX += _velX * TickSeconds;
+        _posY += _velY * TickSeconds;
 
-      if (_posY < 0.0)
-      {
-        _posY = -_posY;
-        _velY = Math.Abs(_velY);
-        if (_posY > maxY) _posY = maxY;
-      }
-      else if (_posY > maxY)
-      {
-        _posY = 2.0 * maxY - _posY;
-        _velY = -Math.Abs(_velY);
-        if (_posY < 0.0) _posY = 0.0;
-      }
+        const double maxX = TableWidth - BallDiameter;
+        const double maxY = TableHeight - BallDiameter;
 
-      NewPositionNotification?.Invoke(this, new Vector(_posX, _posY));
+        if (_posX < 0.0)
+        {
+          _posX = -_posX;
+          _velX = Math.Abs(_velX);
+          if (_posX > maxX) _posX = maxX;
+        }
+        else if (_posX > maxX)
+        {
+          _posX = 2.0 * maxX - _posX;
+          _velX = -Math.Abs(_velX);
+          if (_posX < 0.0) _posX = 0.0;
+        }
+
+        if (_posY < 0.0)
+        {
+          _posY = -_posY;
+          _velY = Math.Abs(_velY);
+          if (_posY > maxY) _posY = maxY;
+        }
+        else if (_posY > maxY)
+        {
+          _posY = 2.0 * maxY - _posY;
+          _velY = -Math.Abs(_velY);
+          if (_posY < 0.0) _posY = 0.0;
+        }
+
+        currentPos = new Vector(_posX, _posY);
+      }
+      NewPositionNotification?.Invoke(this, currentPos);
     }
 
     #endregion private
@@ -127,7 +143,8 @@ namespace TP.ConcurrentProgramming.Data
     [Conditional("DEBUG")]
     internal void CheckVelocity(Action<double, double> returnVelocity)
     {
-      returnVelocity(_velX, _velY);
+      lock (_lock)
+        returnVelocity(_velX, _velY);
     }
 
     [Conditional("DEBUG")]

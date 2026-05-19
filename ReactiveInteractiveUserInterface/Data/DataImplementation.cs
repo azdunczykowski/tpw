@@ -65,9 +65,9 @@ namespace TP.ConcurrentProgramming.Data
 
     #region private
 
-    private const double TableWidth = 400.0;
-    private const double TableHeight = 400.0;
-    private const double BallDiameter = 20.0;
+    private const double TableWidth = TableDimensions.Width;
+    private const double TableHeight = TableDimensions.Height;
+    private const double BallDiameter = TableDimensions.BallSize;
 
     private bool Disposed = false;
     private Random RandomGenerator = new();

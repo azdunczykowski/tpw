@@ -1,4 +1,4 @@
-﻿//____________________________________________________________________________________________________________________________________
+//____________________________________________________________________________________________________________________________________
 //
 //  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
@@ -45,9 +45,10 @@ namespace TP.ConcurrentProgramming.Presentation.Model.Test
     private class BusinessLogicIBallFixture : BusinessLogic.IBall
     {
       public event EventHandler<IPosition>? NewPositionNotification;
-      public double KineticEnergy => 0.0;
-      public double MomentumMagnitude => 0.0;
+      public IPosition Velocity => new PositionFixture(0.0, 0.0);
       public double Mass => 1.0;
+
+      private record PositionFixture(double x, double y) : IPosition;
     }
 
     #endregion testing instrumentation

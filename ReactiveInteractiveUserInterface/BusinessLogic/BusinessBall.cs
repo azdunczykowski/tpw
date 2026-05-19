@@ -22,23 +22,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     public event EventHandler<IPosition>? NewPositionNotification;
 
-    public double KineticEnergy
-    {
-      get
-      {
-        Data.IVector v = _dataBall.Velocity;
-        return 0.5 * (v.x * v.x + v.y * v.y);
-      }
-    }
-
-    public double MomentumMagnitude
-    {
-      get
-      {
-        Data.IVector v = _dataBall.Velocity;
-        return Math.Sqrt(v.x * v.x + v.y * v.y);
-      }
-    }
+    public IPosition Velocity => new Position(_dataBall.Velocity.x, _dataBall.Velocity.y);
 
     public double Mass => _dataBall.Mass;
 

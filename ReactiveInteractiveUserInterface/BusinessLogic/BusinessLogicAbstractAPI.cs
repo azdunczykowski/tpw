@@ -1,4 +1,4 @@
-﻿//____________________________________________________________________________________________________________________________________
+//____________________________________________________________________________________________________________________________________
 //
 //  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
@@ -23,7 +23,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     #region Layer API
 
-    public static readonly Dimensions GetDimensions = new(20.0, 400.0, 400.0);
+    public static readonly Dimensions GetDimensions = new(30.0, 400.0, 400.0);
 
     public abstract void Start(int numberOfBalls, Action<IPosition, IBall> upperLayerHandler);
 
@@ -41,15 +41,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     #endregion private
   }
-  /// <summary>
-  /// Immutable type representing table dimensions
-  /// </summary>
-  /// <param name="BallDimension"></param>
-  /// <param name="TableHeight"></param>
-  /// <param name="TableWidth"></param>
-  /// <remarks>
-  /// Must be abstract
-  /// </remarks>
+
   public record Dimensions(double BallDimension, double TableHeight, double TableWidth);
 
   public interface IPosition
@@ -61,8 +53,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
   public interface IBall
   {
     event EventHandler<IPosition> NewPositionNotification;
-    double KineticEnergy { get; }
-    double MomentumMagnitude { get; }
+    IPosition Velocity { get; }
     double Mass { get; }
   }
 }

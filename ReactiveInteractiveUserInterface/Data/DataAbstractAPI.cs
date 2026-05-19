@@ -10,6 +10,13 @@
 
 namespace TP.ConcurrentProgramming.Data
 {
+  public static class TableDimensions
+  {
+    public const double Width = 400.0;
+    public const double Height = 400.0;
+    public const double BallSize = 30.0;
+  }
+
   public abstract class DataAbstractAPI : IDisposable
   {
     #region Layer Factory
@@ -42,14 +49,7 @@ namespace TP.ConcurrentProgramming.Data
 
   public interface IVector
   {
-    /// <summary>
-    /// The X component of the vector.
-    /// </summary>
     double x { get; init; }
-
-    /// <summary>
-    /// The y component of the vector.
-    /// </summary>
     double y { get; init; }
   }
 
@@ -61,6 +61,8 @@ namespace TP.ConcurrentProgramming.Data
 
     double Mass { get; }
 
-    IVector Position { get; }
+    IVector Position { get; set; }
+
+    (IVector position, IVector velocity) GetState();
   }
 }

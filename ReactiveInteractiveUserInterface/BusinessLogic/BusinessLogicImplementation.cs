@@ -45,9 +45,9 @@ namespace TP.ConcurrentProgramming.BusinessLogic
         throw new ArgumentNullException(nameof(upperLayerHandler));
       layerBellow.Start(numberOfBalls, (startingPosition, dataBall) =>
       {
-        lock (_lock)
+        lock (_ballsLock)
           _dataBalls.Add(dataBall);
-        dataBall.NewPositionNotification += OnDataBallPositionChanged;
+        dataBall.NewPositionNotification += HandleCollisions;
         Ball logicBall = new Ball(dataBall);
         upperLayerHandler(new Position(startingPosition.x, startingPosition.y), logicBall);
       });
@@ -60,50 +60,52 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     private bool Disposed = false;
     private readonly UnderneathLayerAPI layerBellow;
     private readonly List<Data.IBall> _dataBalls = [];
-    private readonly object _lock = new();
-    private const double BallDiameter = 20.0;
+    private readonly object _ballsLock = new();
+    private const double BallDiameter = Data.TableDimensions.BallSize;
 
-    private void OnDataBallPositionChanged(object? sender, Data.IVector newPos)
+    private void HandleCollisions(object? sender, Data.IVector _)
     {
       if (sender is not Data.IBall movedBall) return;
       List<Data.IBall> snapshot;
-      lock (_lock)
+      lock (_ballsLock)
         snapshot = [.. _dataBalls];
+      var (p1, v1) = movedBall.GetState();
       foreach (Data.IBall other in snapshot)
       {
         if (ReferenceEquals(other, movedBall)) continue;
-        ResolveCollision(movedBall, newPos, other);
+        var (p2, v2) = other.GetState();
+        ResolveCollision(movedBall, p1, v1, other, p2, v2);
+        (p1, v1) = movedBall.GetState();
       }
     }
 
-    private void ResolveCollision(Data.IBall a, Data.IVector aPos, Data.IBall b)
+    private void ResolveCollision(Data.IBall a, Data.IVector aPos, Data.IVector aVel,
+                                  Data.IBall b, Data.IVector bPos, Data.IVector bVel)
     {
-      lock (_lock)
-      {
-        Data.IVector bPos = b.Position;
-        double dx = bPos.x - aPos.x;
-        double dy = bPos.y - aPos.y;
-        double dist2 = dx * dx + dy * dy;
-        if (dist2 >= BallDiameter * BallDiameter || dist2 < 1e-10) return;
+      double dx = bPos.x - aPos.x;
+      double dy = bPos.y - aPos.y;
+      double dist2 = dx * dx + dy * dy;
+      if (dist2 >= BallDiameter * BallDiameter || dist2 < 1e-10) return;
 
-        Data.IVector va = a.Velocity;
-        Data.IVector vb = b.Velocity;
-        double dvx = va.x - vb.x;
-        double dvy = va.y - vb.y;
-        double dot = dvx * dx + dvy * dy;
-        if (dot <= 0.0) return;
+      double dvx = aVel.x - bVel.x;
+      double dvy = aVel.y - bVel.y;
+      double dot = dvx * dx + dvy * dy;
+      if (dot <= 0.0) return;
 
-        double dist = Math.Sqrt(dist2);
-        double nx = dx / dist;
-        double ny = dy / dist;
-        double vRelN = dot / dist;
-        double ma = a.Mass;
-        double mb = b.Mass;
-        double impulse = 2.0 * ma * mb / (ma + mb) * vRelN;
+      double dist = Math.Sqrt(dist2);
+      double nx = dx / dist;
+      double ny = dy / dist;
+      double vRelN = dot / dist;
+      double ma = a.Mass;
+      double mb = b.Mass;
+      double impulse = 2.0 * ma * mb / (ma + mb) * vRelN;
 
-        a.Velocity = new DataVector(va.x - impulse / ma * nx, va.y - impulse / ma * ny);
-        b.Velocity = new DataVector(vb.x + impulse / mb * nx, vb.y + impulse / mb * ny);
-      }
+      a.Velocity = new DataVector(aVel.x - impulse / ma * nx, aVel.y - impulse / ma * ny);
+      b.Velocity = new DataVector(bVel.x + impulse / mb * nx, bVel.y + impulse / mb * ny);
+
+      double overlap = BallDiameter - dist;
+      a.Position = new DataVector(aPos.x - overlap * 0.5 * nx, aPos.y - overlap * 0.5 * ny);
+      b.Position = new DataVector(bPos.x + overlap * 0.5 * nx, bPos.y + overlap * 0.5 * ny);
     }
 
     private sealed class DataVector : Data.IVector

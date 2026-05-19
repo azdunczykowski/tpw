@@ -106,3 +106,6 @@ $tf/
 # Mac OS folder settings (good practice if you ever work on a Mac)
 .DS_Store
 
+# Claude Code
+.claude/
+

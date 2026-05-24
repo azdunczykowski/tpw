@@ -9,23 +9,20 @@
 //_____________________________________________________________________________________________________________________________________
 
 using System.Diagnostics;
+using System.Threading.Channels;
 
 namespace TP.ConcurrentProgramming.Data
 {
-  // Programowanie czasu rzeczywistego: ruch oparty na rzeczywistym czasie delta ze Stopwatch,
-  // nie na stałej nominalnej. Logowanie diagnostyczne przez nieblokującą kolejkę.
   internal class Ball : IBall
   {
     internal Ball(Vector initialPosition, Vector initialVelocity,
                   int ballId = 0,
-                  DiagnosticLogger? logger = null,
-                  Action<Ball>? preNotificationCallback = null)
+                  DiagnosticLogger? logger = null)
     {
       _position = initialPosition;
       _velocity = initialVelocity;
       _ballId = ballId;
       _logger = logger;
-      _preNotificationCallback = preNotificationCallback;
       _stopwatch = Stopwatch.StartNew();
 
       _thread = new Thread(Run) { IsBackground = true, Name = $"Ball-{ballId}" };
@@ -39,21 +36,24 @@ namespace TP.ConcurrentProgramming.Data
     public IVector Position
     {
       get { lock (_lock) { return _position; } }
-      set { lock (_lock) { _position = new Vector(value.x, value.y); } }
     }
 
     public IVector Velocity
     {
       get { lock (_lock) { return _velocity; } }
-      set { lock (_lock) { _velocity = new Vector(value.x, value.y); } }
     }
 
     public double Mass { get; } = 1.0;
 
-    // Atomowy odczyt pozycji i prędkości pod jednym lockiem – zapobiega torn read.
     public (IVector position, IVector velocity) GetState()
     {
       lock (_lock) { return (_position, _velocity); }
+    }
+
+    public void EnqueueCorrection(IVector newPosition, IVector newVelocity)
+    {
+      _corrections.Writer.TryWrite(
+        (new Vector(newPosition.x, newPosition.y), new Vector(newVelocity.x, newVelocity.y)));
     }
 
     #endregion IBall
@@ -64,26 +64,23 @@ namespace TP.ConcurrentProgramming.Data
 
     internal void Move(double deltaTime)
     {
+      IVector posSnapshot;
       lock (_lock)
       {
         _position = new Vector(
           _position.x + _velocity.x * deltaTime,
           _position.y + _velocity.y * deltaTime);
+        ApplyWallBounce();
+        posSnapshot = _position;
       }
-
-      _preNotificationCallback?.Invoke(this);
 
       if (_logger != null)
-      {
-        IVector pos, vel;
-        lock (_lock) { pos = _position; vel = _velocity; }
-        _logger.Log(_ballId, pos.x, pos.y, vel.x, vel.y, _stopwatch.ElapsedMilliseconds);
-      }
+        _logger.Log(_ballId, posSnapshot.x, posSnapshot.y,
+                    _velocity.x, _velocity.y, _stopwatch.ElapsedMilliseconds);
 
-      NewPositionNotification?.Invoke(this, _position);
+      NewPositionNotification?.Invoke(this, posSnapshot);
     }
 
-    // Overload dla kompatybilności ze starszymi testami
     internal void Move(double deltaTime, double tableWidth, double tableHeight, double ballDiameter)
       => Move(deltaTime);
 
@@ -100,17 +97,49 @@ namespace TP.ConcurrentProgramming.Data
     private readonly Thread _thread;
     private readonly object _lock = new object();
     private readonly Stopwatch _stopwatch;
-    private readonly Action<Ball>? _preNotificationCallback;
+    private readonly Channel<(Vector position, Vector velocity)> _corrections =
+      Channel.CreateUnbounded<(Vector, Vector)>();
 
     internal const int TargetPeriodMs = 16; // ~60 fps
 
-    // Real-time loop: deltaTime to rzeczywisty czas od ostatniej klatki (Stopwatch),
-    // nie stała nominalna. Thread.Sleep ogranicza CPU ale nie wpływa na fizykę.
+    private void ApplyWallBounce()
+    {
+      double maxX = TableDimensions.Width - TableDimensions.BallSize;
+      double maxY = TableDimensions.Height - TableDimensions.BallSize;
+      double px = _position.x, py = _position.y;
+      double vx = _velocity.x, vy = _velocity.y;
+
+      for (int i = 0; i < 8; i++)
+      {
+        bool bounced = false;
+        if      (px < 0)    { px = -px;            vx =  Math.Abs(vx); bounced = true; }
+        else if (px > maxX) { px = 2 * maxX - px;  vx = -Math.Abs(vx); bounced = true; }
+        if      (py < 0)    { py = -py;             vy =  Math.Abs(vy); bounced = true; }
+        else if (py > maxY) { py = 2 * maxY - py;  vy = -Math.Abs(vy); bounced = true; }
+        if (!bounced) break;
+      }
+
+      px = Math.Clamp(px, 0.0, maxX);
+      py = Math.Clamp(py, 0.0, maxY);
+
+      _position = new Vector(px, py);
+      _velocity = new Vector(vx, vy);
+    }
+
     private void Run()
     {
       var sw = Stopwatch.StartNew();
       while (_running)
       {
+        while (_corrections.Reader.TryRead(out var correction))
+        {
+          lock (_lock)
+          {
+            _position = correction.position;
+            _velocity = correction.velocity;
+          }
+        }
+
         double realDelta = sw.Elapsed.TotalSeconds;
         sw.Restart();
         if (realDelta > 0.2) realDelta = TargetPeriodMs / 1000.0;
@@ -137,6 +166,14 @@ namespace TP.ConcurrentProgramming.Data
     [Conditional("DEBUG")]
     internal void SimulateMove()
     {
+      while (_corrections.Reader.TryRead(out var correction))
+      {
+        lock (_lock)
+        {
+          _position = correction.position;
+          _velocity = correction.velocity;
+        }
+      }
       Move(TargetPeriodMs / 1000.0);
     }
 

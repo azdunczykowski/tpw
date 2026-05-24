@@ -1,10 +1,10 @@
 //____________________________________________________________________________________________________________________________________
 //
-//  Testy programowania czasu rzeczywistego – Etap 3.
+//  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
-//  Weryfikują że:
-//  1. Ruch kuli obliczany jest na podstawie rzeczywistego czasu delta (Stopwatch).
-//  2. Kula przebywa właściwą drogę dla danego deltaTime niezależnie od jego wartości.
+//  To be in touch join the community by pressing the `Watch` button and get started commenting using the discussion panel at
+//
+//  https://github.com/mpostol/TP/discussions/182
 //
 //_____________________________________________________________________________________________________________________________________
 

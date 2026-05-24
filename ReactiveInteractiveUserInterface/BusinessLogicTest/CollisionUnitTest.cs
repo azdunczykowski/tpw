@@ -24,6 +24,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       logic.Start(2, (pos, ball) => { });
 
       ballA.RaiseMove();
+      Thread.Sleep(50);
 
       Assert.IsTrue(ballA.CurrentVelocity.x < 0.0, "Ball A must bounce back (move left) after head-on collision.");
       Assert.IsTrue(ballB.CurrentVelocity.x > 0.0, "Ball B must bounce forward (move right) after receiving impulse.");
@@ -38,10 +39,12 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       logic.Start(2, (pos, ball) => { });
 
       ballA.RaiseMove();
+      Thread.Sleep(50);
       double vAxAfter = ballA.CurrentVelocity.x;
       double vBxAfter = ballB.CurrentVelocity.x;
 
       ballB.RaiseMove();
+      Thread.Sleep(50);
 
       Assert.AreEqual(vAxAfter, ballA.CurrentVelocity.x, 1e-10,
           "Ball A velocity must not change after already-resolved collision (ghost-collision check).");
@@ -59,6 +62,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       logic.Start(3, (pos, ball) => { });
 
       ballA.RaiseMove();
+      Thread.Sleep(50);
 
       Assert.IsTrue(ballA.CurrentVelocity.x < 0.0, "Ball A bounces back after collision with B.");
       Assert.IsTrue(ballB.CurrentVelocity.x > 0.0, "Ball B moves forward after receiving impulse from A.");
@@ -75,6 +79,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
 
       double ke0 = KineticEnergy(ballA) + KineticEnergy(ballB);
       ballA.RaiseMove();
+      Thread.Sleep(50);
       double ke1 = KineticEnergy(ballA) + KineticEnergy(ballB);
 
       Assert.AreEqual(ke0, ke1, 1e-6, "Total kinetic energy must be conserved after elastic collision.");
@@ -89,6 +94,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       logic.Start(2, (pos, ball) => { });
 
       ballA.RaiseMove();
+      Thread.Sleep(50);
 
       Assert.AreEqual(-100.0, ballA.CurrentVelocity.x, 1e-10, "Ball A must not change velocity when balls are moving apart.");
       Assert.AreEqual(100.0, ballB.CurrentVelocity.x, 1e-10, "Ball B must not change velocity when balls are moving apart.");
@@ -121,22 +127,20 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
 
       public event EventHandler<IVector>? NewPositionNotification;
 
-      public IVector Velocity
-      {
-        get => new VecFixture(_velX, _velY);
-        set { _velX = value.x; _velY = value.y; }
-      }
+      public IVector Velocity => new VecFixture(_velX, _velY);
 
       public double Mass => 1.0;
 
-      public IVector Position
-      {
-        get => new VecFixture(_posX, _posY);
-        set { _posX = value.x; _posY = value.y; }
-      }
+      public IVector Position => new VecFixture(_posX, _posY);
 
       public (IVector position, IVector velocity) GetState()
         => (new VecFixture(_posX, _posY), new VecFixture(_velX, _velY));
+
+      public void EnqueueCorrection(IVector newPosition, IVector newVelocity)
+      {
+        _posX = newPosition.x; _posY = newPosition.y;
+        _velX = newVelocity.x; _velY = newVelocity.y;
+      }
 
       public IVector CurrentVelocity => Velocity;
 

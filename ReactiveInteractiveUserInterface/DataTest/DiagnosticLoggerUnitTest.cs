@@ -1,11 +1,10 @@
 //____________________________________________________________________________________________________________________________________
 //
-//  Testy jednostkowe DiagnosticLogger – Etap 3.
+//  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
-//  Sprawdzają:
-//  1. Zapis danych do pliku (prawidłowy format ASCII).
-//  2. Brak wpływu loggera na ruch kuli (non-blocking TryAdd).
-//  3. Poprawne działanie przy braku przepustowości I/O (wypełniona kolejka).
+//  To be in touch join the community by pressing the `Watch` button and get started commenting using the discussion panel at
+//
+//  https://github.com/mpostol/TP/discussions/182
 //
 //_____________________________________________________________________________________________________________________________________
 

@@ -1,10 +1,10 @@
 //____________________________________________________________________________________________________________________________________
 //
-//  Testy sekcji krytycznej – Etap 3.
+//  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
 //
-//  Dowodzą, że:
-//  1. GetState() czyta Position i Velocity atomowo (brak torn read).
-//  2. Wiele wątków może jednocześnie wywoływać HandleCollisions bez race condition.
+//  To be in touch join the community by pressing the `Watch` button and get started commenting using the discussion panel at
+//
+//  https://github.com/mpostol/TP/discussions/182
 //
 //_____________________________________________________________________________________________________________________________________
 
@@ -13,12 +13,6 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
   [TestClass]
   public class CriticalSectionUnitTest
   {
-    /// <summary>
-    /// Udowadnia, że GetState() zwraca spójną parę (position, velocity).
-    /// Writer używa SetState() (atomowy zapis obu pól pod jednym lockiem),
-    /// reader używa GetState() (atomowy odczyt). Torn read byłby możliwy gdyby
-    /// GetState robił dwa osobne odczyty bez locka.
-    /// </summary>
     [TestMethod]
     public void GetState_IsAtomicUnderConcurrentWritesTest()
     {
@@ -66,9 +60,6 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       Assert.IsFalse(tornRead, "GetState() zwróciło niespójny stan (torn read) – sekcja krytyczna nie działa.");
     }
 
-    /// <summary>
-    /// Wiele wątków wywołuje HandleCollisions jednocześnie – nie może dojść do race condition.
-    /// </summary>
     [TestMethod]
     public void HandleCollisions_UnderConcurrentAccessTest()
     {
@@ -116,7 +107,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       Assert.IsFalse(exceptionThrown, "Wyjątek podczas współbieżnego dostępu do HandleCollisions – race condition.");
     }
 
-    // ── Fixtures ─────────────────────────────────────────────────────────
+    #region testing instrumentation
 
     private class TornReadBallFixture : Data.IBall
     {
@@ -130,16 +121,8 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
         _velocity = new VecFix(vx, vy);
       }
 
-      public Data.IVector Position
-      {
-        get { lock (_lock) { return _position; } }
-        set { lock (_lock) { _position = value; } }
-      }
-      public Data.IVector Velocity
-      {
-        get { lock (_lock) { return _velocity; } }
-        set { lock (_lock) { _velocity = value; } }
-      }
+      public Data.IVector Position { get { lock (_lock) { return _position; } } }
+      public Data.IVector Velocity { get { lock (_lock) { return _velocity; } } }
       public double Mass => 1.0;
       public event EventHandler<Data.IVector>? NewPositionNotification;
 
@@ -151,6 +134,11 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       public (Data.IVector position, Data.IVector velocity) GetState()
       {
         lock (_lock) { return (_position, _velocity); }
+      }
+
+      public void EnqueueCorrection(Data.IVector newPosition, Data.IVector newVelocity)
+      {
+        lock (_lock) { _position = newPosition; _velocity = newVelocity; }
       }
     }
 
@@ -167,22 +155,19 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       public BallFix(double px, double py, double vx, double vy)
       { Px = px; Py = py; Vx = vx; Vy = vy; }
 
-      public Data.IVector Position
-      {
-        get { lock (_lock) { return new VecFix(Px, Py); } }
-        set { lock (_lock) { Px = value.x; Py = value.y; } }
-      }
-      public Data.IVector Velocity
-      {
-        get { lock (_lock) { return new VecFix(Vx, Vy); } }
-        set { lock (_lock) { Vx = value.x; Vy = value.y; } }
-      }
+      public Data.IVector Position { get { lock (_lock) { return new VecFix(Px, Py); } } }
+      public Data.IVector Velocity { get { lock (_lock) { return new VecFix(Vx, Vy); } } }
 
       public event EventHandler<Data.IVector>? NewPositionNotification;
 
       public (Data.IVector position, Data.IVector velocity) GetState()
       {
         lock (_lock) { return (new VecFix(Px, Py), new VecFix(Vx, Vy)); }
+      }
+
+      public void EnqueueCorrection(Data.IVector newPosition, Data.IVector newVelocity)
+      {
+        lock (_lock) { Px = newPosition.x; Py = newPosition.y; Vx = newVelocity.x; Vy = newVelocity.y; }
       }
 
       internal void SimulateMove() =>
@@ -207,5 +192,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       public double y { get; init; }
       public VecFix(double x, double y) { this.x = x; this.y = y; }
     }
+
+    #endregion testing instrumentation
   }
 }

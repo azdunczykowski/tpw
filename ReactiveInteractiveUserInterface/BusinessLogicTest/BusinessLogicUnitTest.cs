@@ -114,22 +114,20 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
         private double _velX, _velY;
         private double _posX, _posY;
 
-        public IVector Velocity
-        {
-          get => new DataVectorFixture { x = _velX, y = _velY };
-          set { _velX = value.x; _velY = value.y; }
-        }
+        public IVector Velocity => new DataVectorFixture { x = _velX, y = _velY };
 
         public double Mass => 1.0;
 
-        public IVector Position
-        {
-          get => new DataVectorFixture { x = _posX, y = _posY };
-          set { _posX = value.x; _posY = value.y; }
-        }
+        public IVector Position => new DataVectorFixture { x = _posX, y = _posY };
 
         public (IVector position, IVector velocity) GetState()
           => (new DataVectorFixture { x = _posX, y = _posY }, new DataVectorFixture { x = _velX, y = _velY });
+
+        public void EnqueueCorrection(IVector newPosition, IVector newVelocity)
+        {
+          _posX = newPosition.x; _posY = newPosition.y;
+          _velX = newVelocity.x; _velY = newVelocity.y;
+        }
 
         public event EventHandler<IVector>? NewPositionNotification = null;
 

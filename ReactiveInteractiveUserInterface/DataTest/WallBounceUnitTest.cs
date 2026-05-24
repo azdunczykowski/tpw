@@ -13,39 +13,10 @@ namespace TP.ConcurrentProgramming.Data.Test
   [TestClass]
   public class WallBounceUnitTest
   {
-    // Lokalna kopia logiki odbicia (ta sama co DataImplementation.BounceOffWalls)
-    private static Action<Ball> MakeBounceCallback()
-    {
-      return ball =>
-      {
-        double maxX = TableDimensions.Width - TableDimensions.BallSize;
-        double maxY = TableDimensions.Height - TableDimensions.BallSize;
-        double px = ball.Position.x, py = ball.Position.y;
-        double vx = ball.Velocity.x, vy = ball.Velocity.y;
-
-        for (int i = 0; i < 8; i++)
-        {
-          bool bounced = false;
-          if      (px < 0)    { px = -px;            vx =  Math.Abs(vx); bounced = true; }
-          else if (px > maxX) { px = 2 * maxX - px;  vx = -Math.Abs(vx); bounced = true; }
-          if      (py < 0)    { py = -py;             vy =  Math.Abs(vy); bounced = true; }
-          else if (py > maxY) { py = 2 * maxY - py;  vy = -Math.Abs(vy); bounced = true; }
-          if (!bounced) break;
-        }
-
-        px = Math.Clamp(px, 0.0, maxX);
-        py = Math.Clamp(py, 0.0, maxY);
-
-        ball.Velocity = new Vector(vx, vy);
-        ball.Position = new Vector(px, py);
-      };
-    }
-
     [TestMethod]
     public void RightWallBounceTest()
     {
-      Ball ball = new(new Vector(381.0, 100.0), new Vector(50.0, 0.0),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(381.0, 100.0), new Vector(50.0, 0.0));
       ball.Stop();
       Thread.Sleep(20);
 
@@ -64,8 +35,7 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void LeftWallBounceTest()
     {
-      Ball ball = new(new Vector(0.1, 100.0), new Vector(-50.0, 0.0),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(0.1, 100.0), new Vector(-50.0, 0.0));
       ball.Stop();
       Thread.Sleep(20);
 
@@ -83,8 +53,7 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void BottomWallBounceTest()
     {
-      Ball ball = new(new Vector(100.0, 381.0), new Vector(0.0, 50.0),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(100.0, 381.0), new Vector(0.0, 50.0));
       ball.Stop();
       Thread.Sleep(20);
 
@@ -103,8 +72,7 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void TopWallBounceTest()
     {
-      Ball ball = new(new Vector(100.0, 0.1), new Vector(0.0, -50.0),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(100.0, 0.1), new Vector(0.0, -50.0));
       ball.Stop();
       Thread.Sleep(20);
 
@@ -122,8 +90,7 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void HighVelocityNoBoundaryStickingTest()
     {
-      Ball ball = new(new Vector(190.0, 190.0), new Vector(4000.0, 3000.0),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(190.0, 190.0), new Vector(4000.0, 3000.0));
       ball.Stop();
       Thread.Sleep(20);
 
@@ -149,8 +116,7 @@ namespace TP.ConcurrentProgramming.Data.Test
     [TestMethod]
     public void SpeedPreservedAfterBounceTest()
     {
-      Ball ball = new(new Vector(381.0, 381.0), new Vector(70.3, 80.7),
-                      preNotificationCallback: MakeBounceCallback());
+      Ball ball = new(new Vector(381.0, 381.0), new Vector(70.3, 80.7));
       ball.Stop();
       Thread.Sleep(20);
 

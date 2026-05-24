@@ -57,12 +57,14 @@ namespace TP.ConcurrentProgramming.Data
   {
     event EventHandler<IVector> NewPositionNotification;
 
-    IVector Velocity { get; set; }
+    IVector Velocity { get; }
 
     double Mass { get; }
 
-    IVector Position { get; set; }
+    IVector Position { get; }
 
     (IVector position, IVector velocity) GetState();
+
+    void EnqueueCorrection(IVector newPosition, IVector newVelocity);
   }
 }

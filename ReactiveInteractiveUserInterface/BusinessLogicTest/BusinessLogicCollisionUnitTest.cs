@@ -1,7 +1,10 @@
 //____________________________________________________________________________________________________________________________________
 //
-//  Testy jednostkowe warstwy BusinessLogic – zdarzenia i propagacja (Etap 2).
-//  Warstwa testowana niezależnie przez DI z własnym fixture, bez Moq.
+//  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
+//
+//  To be in touch join the community by pressing the `Watch` button and get started commenting using the discussion panel at
+//
+//  https://github.com/mpostol/TP/discussions/182
 //
 //_____________________________________________________________________________________________________________________________________
 
@@ -74,13 +77,19 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
 
     private class BallFixture : Data.IBall
     {
-      public Data.IVector Position { get; set; } = new VecFixture(DataFixture.StartX, DataFixture.StartY);
-      public Data.IVector Velocity { get => new VecFixture(0, 0); set { } }
+      public Data.IVector Position { get; private set; } = new VecFixture(DataFixture.StartX, DataFixture.StartY);
+      public Data.IVector Velocity { get; private set; } = new VecFixture(0, 0);
       public double Mass => DataFixture.BallMass;
       public event EventHandler<Data.IVector>? NewPositionNotification;
 
       public (Data.IVector position, Data.IVector velocity) GetState()
         => (Position, Velocity);
+
+      public void EnqueueCorrection(Data.IVector newPosition, Data.IVector newVelocity)
+      {
+        Position = newPosition;
+        Velocity = newVelocity;
+      }
 
       internal void Raise(Data.IVector v) => NewPositionNotification?.Invoke(this, v);
     }

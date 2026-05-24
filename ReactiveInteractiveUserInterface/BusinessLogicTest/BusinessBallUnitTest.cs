@@ -31,22 +31,20 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       private double _velX, _velY;
       private double _posX, _posY;
 
-      public Data.IVector Velocity
-      {
-        get => new VectorFixture(_velX, _velY);
-        set { _velX = value.x; _velY = value.y; }
-      }
+      public Data.IVector Velocity => new VectorFixture(_velX, _velY);
 
       public double Mass => 1.0;
 
-      public Data.IVector Position
-      {
-        get => new VectorFixture(_posX, _posY);
-        set { _posX = value.x; _posY = value.y; }
-      }
+      public Data.IVector Position => new VectorFixture(_posX, _posY);
 
       public (Data.IVector position, Data.IVector velocity) GetState()
         => (new VectorFixture(_posX, _posY), new VectorFixture(_velX, _velY));
+
+      public void EnqueueCorrection(Data.IVector newPosition, Data.IVector newVelocity)
+      {
+        _posX = newPosition.x; _posY = newPosition.y;
+        _velX = newVelocity.x; _velY = newVelocity.y;
+      }
 
       public event EventHandler<Data.IVector>? NewPositionNotification;
 

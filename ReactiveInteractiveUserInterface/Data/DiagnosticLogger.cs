@@ -25,7 +25,6 @@ namespace TP.ConcurrentProgramming.Data
       _writer.Start();
     }
 
-    // Non-blocking: jeśli kolejka pełna (brak przepustowości I/O), wpis pomijany.
     internal void Log(int ballId, double posX, double posY, double velX, double velY, long timestampMs)
     {
       if (_disposed) return;
@@ -48,8 +47,6 @@ namespace TP.ConcurrentProgramming.Data
     private readonly Thread _writer;
     private volatile bool _disposed;
 
-    // Ręczna serializacja do ASCII – bez zewnętrznych pakietów.
-    // Format: timestamp_ms;ball_id;pos_x;pos_y;vel_x;vel_y
     private static string Serialize(int id, double px, double py, double vx, double vy, long ts)
     {
       var sb = new StringBuilder(80);
@@ -62,7 +59,6 @@ namespace TP.ConcurrentProgramming.Data
       return sb.ToString();
     }
 
-    // Wątek konsumenta – opóźnienia I/O nie blokują wątków kul.
     private void WriterLoop()
     {
       try

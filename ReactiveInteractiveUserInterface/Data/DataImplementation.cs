@@ -44,8 +44,7 @@ namespace TP.ConcurrentProgramming.Data
 
         Ball newBall = new(startPos, startVel,
                            ballId: i,
-                           logger: _logger,
-                           preNotificationCallback: BounceOffWalls);
+                           logger: _logger);
 
         lock (_ballsLock) { BallsList.Add(newBall); }
         upperLayerHandler(startPos, newBall);
@@ -89,35 +88,6 @@ namespace TP.ConcurrentProgramming.Data
     private readonly object _ballsLock = new object();
     private readonly DiagnosticLogger _logger;
     private readonly bool _ownLogger;
-
-    // Odbicia od ścian – callback wywoływany z wątku kuli przed notyfikacją.
-    // Iteracyjna korekcja zapobiega przyklejaniu przy dużej prędkości.
-    private void BounceOffWalls(Ball ball)
-    {
-      double maxX = TableDimensions.Width - TableDimensions.BallSize;
-      double maxY = TableDimensions.Height - TableDimensions.BallSize;
-
-      double px = ball.Position.x;
-      double py = ball.Position.y;
-      double vx = ball.Velocity.x;
-      double vy = ball.Velocity.y;
-
-      for (int i = 0; i < 8; i++)
-      {
-        bool bounced = false;
-        if      (px < 0)    { px = -px;            vx =  Math.Abs(vx); bounced = true; }
-        else if (px > maxX) { px = 2 * maxX - px;  vx = -Math.Abs(vx); bounced = true; }
-        if      (py < 0)    { py = -py;             vy =  Math.Abs(vy); bounced = true; }
-        else if (py > maxY) { py = 2 * maxY - py;  vy = -Math.Abs(vy); bounced = true; }
-        if (!bounced) break;
-      }
-
-      px = Math.Clamp(px, 0.0, maxX);
-      py = Math.Clamp(py, 0.0, maxY);
-
-      ball.Velocity = new Vector(vx, vy);
-      ball.Position = new Vector(px, py);
-    }
 
     #endregion private
 

@@ -1,8 +1,10 @@
 //____________________________________________________________________________________________________________________________________
 //
-//  Testy zderzenia sprezystego – 2 i 3 kule (Etap 2).
-//  Kolizje wykrywane reaktywnie przez NewPositionNotification.
-//  Fixture recznie wywoluje SimulateMove() zeby zasymulowac ruch kuli.
+//  Copyright (C) 2024, Mariusz Postol LODZ POLAND.
+//
+//  To be in touch join the community by pressing the `Watch` button and get started commenting using the discussion panel at
+//
+//  https://github.com/mpostol/TP/discussions/182
 //
 //_____________________________________________________________________________________________________________________________________
 
@@ -12,8 +14,6 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
   public class BallCollisionUnitTest
   {
     private const double BallDiameter = 30.0;
-
-    // ── 2 kule ───────────────────────────────────────────────────────────────
 
     [TestMethod]
     public void TwoBalls_HeadOnCollision_TransfersVelocityTest()
@@ -77,8 +77,6 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
         "Kulka B nie powinna zmienic predkosci gdy kule sie oddalaja.");
     }
 
-    // ── 3 kule ───────────────────────────────────────────────────────────────
-
     [TestMethod]
     public void ThreeBalls_ChainCollisionTest()
     {
@@ -122,12 +120,14 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
         $"Energia kinetyczna 3 kul musi byc zachowana (przed={eBefore:F3}, po={eAfter:F3}).");
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    #region helpers
 
     private static double KE(BallFix b) =>
       0.5 * b.Mass * (b.Vx * b.Vx + b.Vy * b.Vy);
 
-    // ── fixture ──────────────────────────────────────────────────────────────
+    #endregion helpers
+
+    #region testing instrumentation
 
     private class DataApiFixture : Data.DataAbstractAPI
     {
@@ -154,22 +154,20 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       public BallFix(double px, double py, double vx, double vy)
       { Px = px; Py = py; Vx = vx; Vy = vy; }
 
-      public Data.IVector Position
-      {
-        get => new VecFix(Px, Py);
-        set { Px = value.x; Py = value.y; }
-      }
+      public Data.IVector Position => new VecFix(Px, Py);
 
-      public Data.IVector Velocity
-      {
-        get => new VecFix(Vx, Vy);
-        set { Vx = value.x; Vy = value.y; }
-      }
+      public Data.IVector Velocity => new VecFix(Vx, Vy);
 
       public event EventHandler<Data.IVector>? NewPositionNotification;
 
       public (Data.IVector position, Data.IVector velocity) GetState()
         => (Position, Velocity);
+
+      public void EnqueueCorrection(Data.IVector newPosition, Data.IVector newVelocity)
+      {
+        Px = newPosition.x; Py = newPosition.y;
+        Vx = newVelocity.x; Vy = newVelocity.y;
+      }
 
       internal void SimulateMove() =>
         NewPositionNotification?.Invoke(this, new VecFix(Px, Py));
@@ -181,5 +179,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       public double y { get; init; }
       public VecFix(double x, double y) { this.x = x; this.y = y; }
     }
+
+    #endregion testing instrumentation
   }
 }

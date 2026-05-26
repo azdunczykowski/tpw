@@ -16,13 +16,23 @@ namespace TP.ConcurrentProgramming.Data
   {
     public DataImplementation() : this(null) { }
 
-    internal DataImplementation(DiagnosticLogger? logger)
+    internal DataImplementation(ILogger? logger)
     {
       _logger = logger ?? DiagnosticLogger.CreateDefaultLogger();
       _ownLogger = (logger == null);
     }
 
     #region DataAbstractAPI
+
+    public override IBall? GetMouseBall() => _mouseBall;
+
+    public override void SetMouseBallPosition(double x, double y)
+    {
+      if (Disposed) return;
+      double clampedX = Math.Clamp(x, 0, TableDimensions.Width - TableDimensions.BallSize);
+      double clampedY = Math.Clamp(y, 0, TableDimensions.Height - TableDimensions.BallSize);
+      _mouseBall.UpdatePosition(new Vector(clampedX, clampedY));
+    }
 
     public override void Start(int numberOfBalls, Action<IVector, IBall> upperLayerHandler)
     {
@@ -66,6 +76,7 @@ namespace TP.ConcurrentProgramming.Data
             foreach (Ball ball in BallsList) ball.Stop();
             BallsList.Clear();
           }
+          _mouseBall.Stop();
           if (_ownLogger) _logger.Dispose();
         }
         Disposed = true;
@@ -86,8 +97,9 @@ namespace TP.ConcurrentProgramming.Data
     private bool Disposed = false;
     private readonly List<Ball> BallsList = [];
     private readonly object _ballsLock = new object();
-    private readonly DiagnosticLogger _logger;
+    private readonly ILogger _logger;
     private readonly bool _ownLogger;
+    private readonly MouseBall _mouseBall = new MouseBall();
 
     #endregion private
 

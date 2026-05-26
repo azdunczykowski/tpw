@@ -20,12 +20,22 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     #region ctor
 
-    public BusinessLogicImplementation() : this(null)
+    public BusinessLogicImplementation() : this(null, null)
     { }
 
-    internal BusinessLogicImplementation(UnderneathLayerAPI? underneathLayer)
+    internal BusinessLogicImplementation(UnderneathLayerAPI? underneathLayer, Data.ILogger? logger = null)
     {
-      layerBellow = underneathLayer == null ? UnderneathLayerAPI.GetDataLayer() : underneathLayer;
+      layerBellow = underneathLayer ?? UnderneathLayerAPI.GetDataLayer();
+      if (underneathLayer == null)
+      {
+        _logger = logger ?? UnderneathLayerAPI.CreateDiagnosticLogger("bl_collisions.txt");
+        _ownLogger = (logger == null);
+      }
+      else
+      {
+        _logger = logger;
+        _ownLogger = false;
+      }
       _physicsThread = new Thread(ProcessPhysics) { IsBackground = true, Name = "PhysicsEngine" };
       _physicsThread.Start();
     }
@@ -41,6 +51,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
       Disposed = true;
       _physicsQueue.CompleteAdding();
       _physicsThread.Join(1000);
+      if (_ownLogger) _logger?.Dispose();
       layerBellow.Dispose();
     }
 
@@ -52,11 +63,31 @@ namespace TP.ConcurrentProgramming.BusinessLogic
         throw new ArgumentNullException(nameof(upperLayerHandler));
       layerBellow.Start(numberOfBalls, (startingPosition, dataBall) =>
       {
+        int id = System.Threading.Interlocked.Increment(ref _nextBallId);
+        _ballIds[dataBall] = id;
         _physicsQueue.TryAdd(new BallSnapshot(dataBall, startingPosition, dataBall.Velocity, IsInit: true));
         dataBall.NewPositionNotification += HandleCollisions;
         Ball logicBall = new Ball(dataBall);
         upperLayerHandler(new Position(startingPosition.x, startingPosition.y), logicBall);
       });
+
+      Data.IBall? mouseBall = layerBellow.GetMouseBall();
+      if (mouseBall != null)
+      {
+        int id = System.Threading.Interlocked.Increment(ref _nextBallId);
+        _ballIds[mouseBall] = id;
+        var (pos, vel) = mouseBall.GetState();
+        _physicsQueue.TryAdd(new BallSnapshot(mouseBall, pos, vel, IsInit: true));
+        mouseBall.NewPositionNotification += HandleCollisions;
+        Ball mouseLogicBall = new Ball(mouseBall);
+        upperLayerHandler(new Position(pos.x, pos.y), mouseLogicBall);
+      }
+    }
+
+    public override void UpdateMousePosition(double x, double y)
+    {
+      if (Disposed) return;
+      layerBellow.SetMouseBallPosition(x, y);
     }
 
     #endregion BusinessLogicAbstractAPI
@@ -71,6 +102,11 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     private readonly Thread _physicsThread;
 
     private readonly Dictionary<Data.IBall, (Data.IVector pos, Data.IVector vel)> _worldState = new();
+    private readonly Dictionary<Data.IBall, int> _ballIds = new();
+    private int _nextBallId = 0;
+
+    private readonly Data.ILogger? _logger;
+    private readonly bool _ownLogger;
 
     private void HandleCollisions(object? sender, Data.IVector _)
     {
@@ -111,6 +147,16 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
           snap.Ball.EnqueueCorrection(newCurPos, newCurVel);
           other.EnqueueCorrection(newOtherPos, newOtherVel);
+
+          if (_logger != null)
+          {
+            _ballIds.TryGetValue(snap.Ball, out int aId);
+            _ballIds.TryGetValue(other, out int bId);
+            _logger.Log(Data.LogLevel.Notice,
+              $"Ball {aId} collided with Ball {bId} at ({curPos.x:F1},{curPos.y:F1}) newVel=({newCurVel.x:F1},{newCurVel.y:F1})");
+            _logger.Log(Data.LogLevel.Notice,
+              $"Ball {bId} collided with Ball {aId} at ({otherPos.x:F1},{otherPos.y:F1}) newVel=({newOtherVel.x:F1},{newOtherVel.y:F1})");
+          }
         }
       }
     }
@@ -141,9 +187,13 @@ namespace TP.ConcurrentProgramming.BusinessLogic
       double impulse = 2.0 * ma * mb / (ma + mb) * vRelN;
       double overlap = BallDiameter - dist;
 
-      newAPos = new DataVector(aPos.x - overlap * 0.5 * nx, aPos.y - overlap * 0.5 * ny);
+      double totalMass = ma + mb;
+      double pushA = overlap * mb / totalMass;
+      double pushB = overlap * ma / totalMass;
+
+      newAPos = new DataVector(aPos.x - pushA * nx, aPos.y - pushA * ny);
       newAVel = new DataVector(aVel.x - impulse / ma * nx,  aVel.y - impulse / ma * ny);
-      newBPos = new DataVector(bPos.x + overlap * 0.5 * nx, bPos.y + overlap * 0.5 * ny);
+      newBPos = new DataVector(bPos.x + pushB * nx, bPos.y + pushB * ny);
       newBVel = new DataVector(bVel.x + impulse / mb * nx,  bVel.y + impulse / mb * ny);
       return true;
     }

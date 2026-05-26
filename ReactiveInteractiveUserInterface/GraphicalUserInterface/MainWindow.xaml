@@ -23,8 +23,9 @@
             <TextBlock Text="{Binding TotalMomentum, StringFormat=F2}"
                        VerticalAlignment="Center" MinWidth="80"/>
         </StackPanel>
-        <Border BorderThickness="4" BorderBrush="Green" Margin="8,4,8,8"
-                HorizontalAlignment="Left" VerticalAlignment="Top">
+        <Border x:Name="BallTableBorder" BorderThickness="4" BorderBrush="Green" Margin="8,4,8,8"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MouseMove="BallTableBorder_MouseMove">
             <ItemsControl ItemsSource="{Binding Balls}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

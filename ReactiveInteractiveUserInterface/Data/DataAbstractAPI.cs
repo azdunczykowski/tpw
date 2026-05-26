@@ -10,6 +10,23 @@
 
 namespace TP.ConcurrentProgramming.Data
 {
+  public enum LogLevel
+  {
+    Emergency = 0,
+    Alert     = 1,
+    Critical  = 2,
+    Error     = 3,
+    Warning   = 4,
+    Notice    = 5,
+    Info      = 6,
+    Debug     = 7
+  }
+
+  public interface ILogger : IDisposable
+  {
+    void Log(LogLevel level, string message);
+  }
+
   public static class TableDimensions
   {
     public const double Width = 400.0;
@@ -30,7 +47,14 @@ namespace TP.ConcurrentProgramming.Data
 
     #region public API
 
+    public static ILogger CreateDiagnosticLogger(string filename = "diagnostic_log.txt")
+      => DiagnosticLogger.CreateDefaultLogger(filename);
+
     public abstract void Start(int numberOfBalls, Action<IVector, IBall> upperLayerHandler);
+
+    public virtual IBall? GetMouseBall() => null;
+
+    public virtual void SetMouseBallPosition(double x, double y) { }
 
     #endregion public API
 

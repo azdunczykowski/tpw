@@ -17,7 +17,7 @@ namespace TP.ConcurrentProgramming.Data
   {
     internal Ball(Vector initialPosition, Vector initialVelocity,
                   int ballId = 0,
-                  DiagnosticLogger? logger = null)
+                  ILogger? logger = null)
     {
       _position = initialPosition;
       _velocity = initialVelocity;
@@ -74,9 +74,8 @@ namespace TP.ConcurrentProgramming.Data
         posSnapshot = _position;
       }
 
-      if (_logger != null)
-        _logger.Log(_ballId, posSnapshot.x, posSnapshot.y,
-                    _velocity.x, _velocity.y, _stopwatch.ElapsedMilliseconds);
+      _logger?.Log(LogLevel.Info,
+        $"Ball {_ballId} pos=({posSnapshot.x:F4},{posSnapshot.y:F4}) vel=({_velocity.x:F4},{_velocity.y:F4}) t={_stopwatch.ElapsedMilliseconds}ms");
 
       NewPositionNotification?.Invoke(this, posSnapshot);
     }
@@ -93,7 +92,7 @@ namespace TP.ConcurrentProgramming.Data
     private volatile bool _running = true;
 
     private readonly int _ballId;
-    private readonly DiagnosticLogger? _logger;
+    private readonly ILogger? _logger;
     private readonly Thread _thread;
     private readonly object _lock = new object();
     private readonly Stopwatch _stopwatch;

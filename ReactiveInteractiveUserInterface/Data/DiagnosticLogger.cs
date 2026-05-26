@@ -9,11 +9,11 @@ using System.Text;
 
 namespace TP.ConcurrentProgramming.Data
 {
-  internal class DiagnosticLogger : IDisposable
+  internal class DiagnosticLogger : ILogger
   {
-    internal static DiagnosticLogger CreateDefaultLogger()
+    internal static DiagnosticLogger CreateDefaultLogger(string filename = "diagnostic_log.txt")
     {
-      string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "diagnostic_log.txt");
+      string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, filename);
       return new DiagnosticLogger(path);
     }
 
@@ -25,10 +25,18 @@ namespace TP.ConcurrentProgramming.Data
       _writer.Start();
     }
 
-    internal void Log(int ballId, double posX, double posY, double velX, double velY, long timestampMs)
+    public void Log(LogLevel level, string message)
     {
       if (_disposed) return;
-      _queue.TryAdd(Serialize(ballId, posX, posY, velX, velY, timestampMs));
+      string entry = FormatSyslog(level, message);
+
+      lock (_bufferLock)
+      {
+        if ((int)level <= (int)LogLevel.Error)
+          _queue.TryAdd(entry);
+        else if (_queue.Count < BoundedCapacity * 3 / 4)
+          _queue.TryAdd(entry);
+      }
     }
 
     public void Dispose()
@@ -41,22 +49,22 @@ namespace TP.ConcurrentProgramming.Data
     }
 
     private const int BoundedCapacity = 1024;
+    private static readonly int _pid = Environment.ProcessId;
+    private static readonly string _hostname = Environment.MachineName;
 
     private readonly string _filePath;
     private readonly BlockingCollection<string> _queue;
     private readonly Thread _writer;
+    private readonly object _bufferLock = new object();
     private volatile bool _disposed;
 
-    private static string Serialize(int id, double px, double py, double vx, double vy, long ts)
+    private static string FormatSyslog(LogLevel level, string message)
     {
-      var sb = new StringBuilder(80);
-      sb.Append(ts); sb.Append(';');
-      sb.Append(id); sb.Append(';');
-      sb.Append(px.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)); sb.Append(';');
-      sb.Append(py.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)); sb.Append(';');
-      sb.Append(vx.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)); sb.Append(';');
-      sb.Append(vy.ToString("F4", System.Globalization.CultureInfo.InvariantCulture));
-      return sb.ToString();
+      int pri = 8 + (int)level;
+      string timestamp = DateTime.UtcNow.ToString("MMM dd HH:mm:ss",
+        System.Globalization.CultureInfo.InvariantCulture);
+      string levelName = level.ToString().ToUpperInvariant();
+      return $"<{pri}>{timestamp} {_hostname} ball-sim[{_pid}]: {levelName} {message}";
     }
 
     private void WriterLoop()
@@ -64,7 +72,6 @@ namespace TP.ConcurrentProgramming.Data
       try
       {
         using StreamWriter sw = new StreamWriter(_filePath, append: false, encoding: Encoding.ASCII);
-        sw.WriteLine("timestamp_ms;ball_id;pos_x;pos_y;vel_x;vel_y");
         foreach (string entry in _queue.GetConsumingEnumerable())
         {
           sw.WriteLine(entry);

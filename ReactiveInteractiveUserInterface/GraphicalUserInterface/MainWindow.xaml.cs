@@ -9,6 +9,8 @@
 
 using System;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using TP.ConcurrentProgramming.Presentation.ViewModel;
 
 namespace TP.ConcurrentProgramming.PresentationView
@@ -25,6 +27,16 @@ namespace TP.ConcurrentProgramming.PresentationView
       if (DataContext is MainWindowViewModel viewModel)
         viewModel.Dispose();
       base.OnClosed(e);
+    }
+
+    private void BallTableBorder_MouseMove(object sender, MouseEventArgs e)
+    {
+      var border = (Border)sender;
+      var pos = e.GetPosition(border);
+      double borderLeft = border.BorderThickness.Left;
+      double borderTop  = border.BorderThickness.Top;
+      if (DataContext is MainWindowViewModel vm)
+        vm.OnMouseMove(pos.X - borderLeft, pos.Y - borderTop);
     }
   }
 }

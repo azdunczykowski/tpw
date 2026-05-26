@@ -55,6 +55,11 @@ namespace TP.ConcurrentProgramming.Presentation.Model
       PhysicsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public override void UpdateMousePosition(double x, double y)
+    {
+      layerBellow.UpdateMousePosition(x, y);
+    }
+
     #endregion ModelAbstractApi
 
     #region API

@@ -28,6 +28,8 @@ namespace TP.ConcurrentProgramming.Presentation.Model
 
     public abstract void Start(int numberOfBalls);
 
+    public virtual void UpdateMousePosition(double x, double y) { }
+
     public abstract double TotalEnergy { get; }
     public abstract double TotalMomentum { get; }
 

@@ -27,6 +27,8 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 
     public abstract void Start(int numberOfBalls, Action<IPosition, IBall> upperLayerHandler);
 
+    public virtual void UpdateMousePosition(double x, double y) { }
+
     #region IDisposable
 
     public abstract void Dispose();

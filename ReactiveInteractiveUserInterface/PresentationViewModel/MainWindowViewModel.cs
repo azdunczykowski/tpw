@@ -62,6 +62,11 @@ namespace TP.ConcurrentProgramming.Presentation.ViewModel
       set { _numberOfBalls = value; RaisePropertyChanged(); }
     }
 
+    public void OnMouseMove(double x, double y)
+    {
+      ModelLayer.UpdateMousePosition(x, y);
+    }
+
     #endregion public API
 
     #region IDisposable

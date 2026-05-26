@@ -85,6 +85,8 @@ namespace TP.ConcurrentProgramming.Data
 
     double Mass { get; }
 
+    bool IsKinematic => false;
+
     IVector Position { get; }
 
     (IVector position, IVector velocity) GetState();

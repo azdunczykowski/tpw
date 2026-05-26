@@ -16,7 +16,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
 {
   internal class BusinessLogicImplementation : BusinessLogicAbstractAPI
   {
-    private readonly record struct BallSnapshot(Data.IBall Ball, Data.IVector Position, Data.IVector Velocity, bool IsInit = false);
+    private readonly record struct BallSnapshot(Data.IBall Ball, Data.IVector Position, Data.IVector Velocity, long Seq, bool IsInit = false);
 
     #region ctor
 
@@ -65,7 +65,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
       {
         int id = System.Threading.Interlocked.Increment(ref _nextBallId);
         _ballIds[dataBall] = id;
-        _physicsQueue.TryAdd(new BallSnapshot(dataBall, startingPosition, dataBall.Velocity, IsInit: true));
+        _physicsQueue.TryAdd(new BallSnapshot(dataBall, startingPosition, dataBall.Velocity, Seq: 0, IsInit: true));
         dataBall.NewPositionNotification += HandleCollisions;
         Ball logicBall = new Ball(dataBall);
         upperLayerHandler(new Position(startingPosition.x, startingPosition.y), logicBall);
@@ -77,7 +77,7 @@ namespace TP.ConcurrentProgramming.BusinessLogic
         int id = System.Threading.Interlocked.Increment(ref _nextBallId);
         _ballIds[mouseBall] = id;
         var (pos, vel) = mouseBall.GetState();
-        _physicsQueue.TryAdd(new BallSnapshot(mouseBall, pos, vel, IsInit: true));
+        _physicsQueue.TryAdd(new BallSnapshot(mouseBall, pos, vel, Seq: 0, IsInit: true));
         mouseBall.NewPositionNotification += HandleCollisions;
         Ball mouseLogicBall = new Ball(mouseBall);
         upperLayerHandler(new Position(pos.x, pos.y), mouseLogicBall);
@@ -105,6 +105,13 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     private readonly Dictionary<Data.IBall, int> _ballIds = new();
     private int _nextBallId = 0;
 
+    // Snapshot sequence counter — monotonically increasing, shared across threads via Interlocked.
+    // _minAcceptedSeq[ball] = minimum Seq a snapshot must have to not be considered stale.
+    // When a correction is sent to ball B, we stamp _minAcceptedSeq[B] with the next seq value
+    // so any older snapshots of B already in the queue are silently discarded.
+    private long _seqCounter = 0;
+    private readonly Dictionary<Data.IBall, long> _minAcceptedSeq = new();
+
     private readonly Data.ILogger? _logger;
     private readonly bool _ownLogger;
 
@@ -112,8 +119,12 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     {
       if (sender is Data.IBall ball && !_physicsQueue.IsAddingCompleted)
       {
+        // Seq assigned BEFORE GetState so that any correction stamped between
+        // the two operations gives the correction a higher seq — making this
+        // snapshot correctly stale.
+        long seq = Interlocked.Increment(ref _seqCounter);
         var (pos, vel) = ball.GetState();
-        _physicsQueue.TryAdd(new BallSnapshot(ball, pos, vel));
+        _physicsQueue.TryAdd(new BallSnapshot(ball, pos, vel, seq));
       }
     }
 
@@ -121,6 +132,10 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     {
       foreach (BallSnapshot snap in _physicsQueue.GetConsumingEnumerable())
       {
+        // Discard stale snapshots: a correction with a higher seq was already applied to this ball.
+        if (_minAcceptedSeq.TryGetValue(snap.Ball, out long minSeq) && snap.Seq < minSeq)
+          continue;
+
         _worldState[snap.Ball] = (snap.Position, snap.Velocity);
         if (snap.IsInit) continue;
 
@@ -134,8 +149,8 @@ namespace TP.ConcurrentProgramming.BusinessLogic
           var (otherPos, otherVel) = _worldState[other];
 
           if (!TryComputeCollision(
-                curPos, curVel, snap.Ball.Mass,
-                otherPos, otherVel, other.Mass,
+                curPos, curVel, snap.Ball.Mass, snap.Ball.IsKinematic,
+                otherPos, otherVel, other.Mass, other.IsKinematic,
                 out var newCurPos, out var newCurVel,
                 out var newOtherPos, out var newOtherVel))
             continue;
@@ -146,6 +161,11 @@ namespace TP.ConcurrentProgramming.BusinessLogic
           curVel = newCurVel;
 
           snap.Ball.EnqueueCorrection(newCurPos, newCurVel);
+          // Snapshots of snap.Ball queued before this correction are now stale.
+          _minAcceptedSeq[snap.Ball] = Interlocked.Increment(ref _seqCounter);
+
+          // Any snapshot of 'other' already in the queue predates this correction — mark as stale.
+          _minAcceptedSeq[other] = Interlocked.Increment(ref _seqCounter);
           other.EnqueueCorrection(newOtherPos, newOtherVel);
 
           if (_logger != null)
@@ -162,8 +182,8 @@ namespace TP.ConcurrentProgramming.BusinessLogic
     }
 
     private static bool TryComputeCollision(
-      Data.IVector aPos, Data.IVector aVel, double ma,
-      Data.IVector bPos, Data.IVector bVel, double mb,
+      Data.IVector aPos, Data.IVector aVel, double ma, bool aIsKinematic,
+      Data.IVector bPos, Data.IVector bVel, double mb, bool bIsKinematic,
       out Data.IVector newAPos, out Data.IVector newAVel,
       out Data.IVector newBPos, out Data.IVector newBVel)
     {
@@ -178,23 +198,54 @@ namespace TP.ConcurrentProgramming.BusinessLogic
       double dvx = aVel.x - bVel.x;
       double dvy = aVel.y - bVel.y;
       double dot = dvx * dx + dvy * dy;
-      if (dot <= 0.0) return false;
 
       double dist    = Math.Sqrt(dist2);
       double nx      = dx / dist;
       double ny      = dy / dist;
-      double vRelN   = dot / dist;
-      double impulse = 2.0 * ma * mb / (ma + mb) * vRelN;
       double overlap = BallDiameter - dist;
 
-      double totalMass = ma + mb;
-      double pushA = overlap * mb / totalMass;
-      double pushB = overlap * ma / totalMass;
+      bool aKinematic = aIsKinematic;
+      bool bKinematic = bIsKinematic;
+
+      if (aKinematic || bKinematic)
+      {
+        // Kinematic (cursor-controlled) ball: always separate regardless of relative velocity.
+        // Only the non-kinematic ball moves; it gets pushed by the full overlap distance.
+        if (aKinematic)
+        {
+          newAPos = aPos;
+          newBPos = new DataVector(bPos.x + overlap * nx, bPos.y + overlap * ny);
+        }
+        else
+        {
+          newBPos = bPos;
+          newAPos = new DataVector(aPos.x - overlap * nx, aPos.y - overlap * ny);
+        }
+
+        // Apply velocity impulse only when the balls are actually approaching.
+        if (dot > 0.0)
+        {
+          double vRelN   = dot / dist;
+          double impulse = 2.0 * ma * mb / (ma + mb) * vRelN;
+          newAVel = new DataVector(aVel.x - impulse / ma * nx, aVel.y - impulse / ma * ny);
+          newBVel = new DataVector(bVel.x + impulse / mb * nx, bVel.y + impulse / mb * ny);
+        }
+        return true;
+      }
+
+      // Regular ball-to-ball elastic collision: only process when approaching.
+      if (dot <= 0.0) return false;
+
+      double vRelNormal = dot / dist;
+      double imp        = 2.0 * ma * mb / (ma + mb) * vRelNormal;
+      double totalMass  = ma + mb;
+      double pushA      = overlap * mb / totalMass;
+      double pushB      = overlap * ma / totalMass;
 
       newAPos = new DataVector(aPos.x - pushA * nx, aPos.y - pushA * ny);
-      newAVel = new DataVector(aVel.x - impulse / ma * nx,  aVel.y - impulse / ma * ny);
+      newAVel = new DataVector(aVel.x - imp / ma * nx, aVel.y - imp / ma * ny);
       newBPos = new DataVector(bPos.x + pushB * nx, bPos.y + pushB * ny);
-      newBVel = new DataVector(bVel.x + impulse / mb * nx,  bVel.y + impulse / mb * ny);
+      newBVel = new DataVector(bVel.x + imp / mb * nx, bVel.y + imp / mb * ny);
       return true;
     }
 

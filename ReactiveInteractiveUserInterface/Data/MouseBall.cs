@@ -5,21 +5,19 @@
 //_____________________________________________________________________________________________________________________________________
 
 using System.Diagnostics;
-using System.Threading.Channels;
 
 namespace TP.ConcurrentProgramming.Data
 {
   // A ball whose position is driven by external input (mouse) rather than physics.
   // Participates in collision detection; EnqueueCorrection is a no-op since the mouse
   // controls position. Velocity is computed from successive position updates.
+  // Notification fires synchronously on the calling thread to avoid lag.
   internal class MouseBall : IBall
   {
     internal MouseBall()
     {
       _position = new Vector(-TableDimensions.BallSize, -TableDimensions.BallSize);
       _velocity = new Vector(0, 0);
-      _thread = new Thread(Run) { IsBackground = true, Name = "MouseBall" };
-      _thread.Start();
     }
 
     #region IBall
@@ -30,7 +28,9 @@ namespace TP.ConcurrentProgramming.Data
 
     public IVector Velocity { get { lock (_lock) { return _velocity; } } }
 
-    public double Mass => 100.0;
+    public double Mass => 1.5;
+
+    public bool IsKinematic => true;
 
     public (IVector position, IVector velocity) GetState()
     {
@@ -48,10 +48,31 @@ namespace TP.ConcurrentProgramming.Data
 
     internal void UpdatePosition(Vector newPosition)
     {
-      _positionChannel.Writer.TryWrite(newPosition);
+      double now = _stopwatch.Elapsed.TotalSeconds;
+      Vector pos;
+      lock (_lock)
+      {
+        double dt = (_lastUpdateSec < 0.0) ? 0.0 : (now - _lastUpdateSec);
+        if (dt >= 0.005 && dt < 0.15)
+        {
+          double vx = (newPosition.x - _position.x) / dt;
+          double vy = (newPosition.y - _position.y) / dt;
+          double speed = Math.Sqrt(vx * vx + vy * vy);
+          if (speed > MaxCursorSpeed) { vx = vx / speed * MaxCursorSpeed; vy = vy / speed * MaxCursorSpeed; }
+          _velocity = new Vector(_velocity.x * 0.4 + vx * 0.6, _velocity.y * 0.4 + vy * 0.6);
+        }
+        else if (dt >= 0.15)
+        {
+          _velocity = new Vector(0.0, 0.0);
+        }
+        _position = newPosition;
+        pos = _position;
+        _lastUpdateSec = now;
+      }
+      NewPositionNotification?.Invoke(this, pos);
     }
 
-    internal void Stop() => _running = false;
+    internal void Stop() { }
 
     #endregion internal API
 
@@ -59,47 +80,11 @@ namespace TP.ConcurrentProgramming.Data
 
     private Vector _position;
     private Vector _velocity;
-    private volatile bool _running = true;
-
-    private readonly Thread _thread;
     private readonly object _lock = new object();
-    private readonly Channel<Vector> _positionChannel = Channel.CreateUnbounded<Vector>();
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
-    private long _lastUpdateMs = -1;
+    private double _lastUpdateSec = -1.0;
 
-    private void Run()
-    {
-      while (_running)
-      {
-        bool updated = false;
-        while (_positionChannel.Reader.TryRead(out Vector? newPos) && newPos != null)
-        {
-          long now = _stopwatch.ElapsedMilliseconds;
-          lock (_lock)
-          {
-            double dt = _lastUpdateMs < 0 ? 0 : (now - _lastUpdateMs) / 1000.0;
-            if (dt > 0 && dt < 0.5)
-            {
-              _velocity = new Vector(
-                (newPos.x - _position.x) / dt,
-                (newPos.y - _position.y) / dt);
-            }
-            else
-            {
-              _velocity = new Vector(0, 0);
-            }
-            _position = newPos;
-          }
-          _lastUpdateMs = now;
-          updated = true;
-        }
-
-        if (updated)
-          NewPositionNotification?.Invoke(this, _position);
-
-        Thread.Sleep(8);
-      }
-    }
+    private const double MaxCursorSpeed = 320.0; // px/s cap to prevent explosive collisions
 
     #endregion private
   }

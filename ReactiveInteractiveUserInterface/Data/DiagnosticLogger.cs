@@ -48,6 +48,7 @@ namespace TP.ConcurrentProgramming.Data
           _queue.TryAdd(entry);
         else if (_queue.Count < BoundedCapacity * 3 / 4)
           _queue.TryAdd(entry);
+        Monitor.Pulse(_bufferLock); // spi jak nie ma nic do dodania
       }
     }
 
@@ -55,7 +56,7 @@ namespace TP.ConcurrentProgramming.Data
     {
       if (_disposed) return;
       _disposed = true;
-      _queue.CompleteAdding();
+      lock (_bufferLock) { Monitor.PulseAll(_bufferLock); }
       _writer.Join(TimeSpan.FromSeconds(3));
       _queue.Dispose();
       _udpClient?.Dispose();
@@ -94,10 +95,20 @@ namespace TP.ConcurrentProgramming.Data
     {
       try
       {
-        foreach (string entry in _queue.GetConsumingEnumerable())
+        while (!_disposed)
         {
-          byte[] data = Encoding.ASCII.GetBytes(entry);
-          try { _udpClient!.Send(data, data.Length, _endpoint); } catch { }
+          string? entry = null;
+          lock (_bufferLock)
+          {
+            while (_queue.Count == 0 && !_disposed)
+              Monitor.Wait(_bufferLock);
+            _queue.TryTake(out entry);
+          }
+          if (entry != null)
+          {
+            byte[] data = Encoding.ASCII.GetBytes(entry);
+            try { _udpClient!.Send(data, data.Length, _endpoint); } catch { }
+          }
         }
       }
       catch { }
@@ -108,10 +119,20 @@ namespace TP.ConcurrentProgramming.Data
       try
       {
         using StreamWriter sw = new StreamWriter(_filePath!, append: false, encoding: Encoding.ASCII);
-        foreach (string entry in _queue.GetConsumingEnumerable())
+        while (!_disposed)
         {
-          sw.WriteLine(entry);
-          if (_queue.Count == 0) sw.Flush();
+          string? entry = null;
+          lock (_bufferLock)
+          {
+            while (_queue.Count == 0 && !_disposed)
+              Monitor.Wait(_bufferLock);
+            _queue.TryTake(out entry);
+          }
+          if (entry != null)
+          {
+            sw.WriteLine(entry);
+            if (_queue.Count == 0) sw.Flush();
+          }
         }
         sw.Flush();
       }
